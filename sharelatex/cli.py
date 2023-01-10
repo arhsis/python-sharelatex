@@ -527,11 +527,11 @@ def _sync_deleted_items(
         # check the path and all of its parents dir
         if p_relative not in remote_path:
             if is_not_on_the_allowance_list(file_name=p_relative):
-            logger.debug(f"delete {blob_path}")
-            if blob_path.is_dir():
+                logger.debug(f"delete {blob_path}")
+                if blob_path.is_dir():
                     directories_to_delete.add(blob_path)
-            else:
-                Path.unlink(blob_path)
+                else:
+                    Path.unlink(blob_path)
             else:
                 logger.debug(f"The file {p_relative} is on the local allow list.")
                 parent_dir = os.path.dirname(p_relative)
@@ -674,8 +674,8 @@ def _pull(repo, client, project_id, git_branch: typing.Optional[str] = None, all
         f"commit as reference for upload updates: {commit.message} -- {commit.hexsha}"
     )
     if found_previous_commit:
-    # mode détaché
-    git.checkout(commit)
+        # mode détaché
+        git.checkout(commit)
 
     try:
         # etat du serveur actuel
@@ -707,8 +707,8 @@ def _pull(repo, client, project_id, git_branch: typing.Optional[str] = None, all
             datetimes_dict,
         )
         if found_previous_commit:
-        # TODO reset en cas d'erreur ?
-        # on se place sur la branche de synchro
+            # TODO reset en cas d'erreur ?
+            # on se place sur la branche de synchro
             git.checkout(git_branch)
     except Exception as e:
         # hard reset ?
@@ -1188,3 +1188,6 @@ def new(
             logger.debug(f"delete failed project {project_id} into server ")
             client.delete(project_id, forever=True)
             raise inst
+
+if __name__ == '__main__':
+    cli()
