@@ -655,22 +655,25 @@ def _sync_remote_docs(
                 os.utime(local_path, (remote_time.timestamp(), remote_time.timestamp()))
 
 
-def _pull(repo, client, project_id):
+def _pull(repo, client, project_id, git_branch: typing.Optional[str] = None, allow_list_for_local_files:typing.Optional[str]=None) -> None:
     # attempt to "merge" the remote and the local working copy
 
     git = repo.git
     active_branch = repo.active_branch.name
-    git.checkout(SYNC_BRANCH)
+    git.checkout(git_branch)
     working_path = Path(repo.working_tree_dir)
     logger.debug("find last commit using remote server")
+    found_previous_commit = False
     # for optimization purpose
     for commit in repo.iter_commits():
         if commit.message in COMMIT_MESSAGES:
             logger.debug(f"find this : {commit.message} -- {commit.hexsha}")
+            found_previous_commit = True
             break
     logger.debug(
         f"commit as reference for upload updates: {commit.message} -- {commit.hexsha}"
     )
+    if found_previous_commit:
     # mode détaché
     git.checkout(commit)
 
@@ -685,7 +688,7 @@ def _pull(repo, client, project_id):
         objects.reverse()
 
         datetimes_dict = _get_datetime_from_git(
-            repo, SYNC_BRANCH, objects, working_path
+            repo, git_branch, objects, working_path
         )
 
         _sync_deleted_items(working_path, remote_items, objects)
@@ -703,9 +706,10 @@ def _pull(repo, client, project_id):
             update_data,
             datetimes_dict,
         )
+        if found_previous_commit:
         # TODO reset en cas d'erreur ?
         # on se place sur la branche de synchro
-        git.checkout(SYNC_BRANCH)
+            git.checkout(git_branch)
     except Exception as e:
         # hard reset ?
         git.reset("--hard")
@@ -733,9 +737,9 @@ def _pull(repo, client, project_id):
             f"""Path type changed in server:
             {[d.a_path for d in diff_index.iter_change_type("T")]}"""
         )
-        update_ref(repo, message=COMMIT_MESSAGE_PREPULL)
+        update_ref(repo, message=COMMIT_MESSAGE_PREPULL, git_branch=git_branch)
     git.checkout(active_branch)
-    git.merge(SYNC_BRANCH)
+    git.merge(git_branch)
 
 
 @cli.command(help="Compile the remote version of a project")
