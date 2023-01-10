@@ -495,7 +495,7 @@ class SyncClient:
             username_tag (str): If the service expects not 'email', but e.g., 'login', you can pass this tag name here.
         """
         if base_url == "":
-            raise Exception("projet_url is not well formed or missing")
+            raise Exception("project_url is not well formed or missing")
         self.base_url = base_url
         self.verify = verify
 
