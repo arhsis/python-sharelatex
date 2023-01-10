@@ -691,7 +691,7 @@ def _pull(repo, client, project_id, git_branch: typing.Optional[str] = None, all
             repo, git_branch, objects, working_path
         )
 
-        _sync_deleted_items(working_path, remote_items, objects)
+        _sync_deleted_items(working_path, remote_items, objects, allow_list_for_local_files=allow_list_for_local_files)
 
         _sync_remote_files(
             client, project_id, working_path, remote_items, datetimes_dict
