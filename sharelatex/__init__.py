@@ -496,7 +496,7 @@ class SyncClient:
         """
         if base_url == "":
             raise Exception("project_url is not well formed or missing")
-        self.base_url = base_url
+        self.base_url = base_url.rstrip("/") # PS: the base URL should not end with /
         self.verify = verify
 
         # Used in _get, _post... to add common headers
