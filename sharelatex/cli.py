@@ -1,3 +1,5 @@
+import functools
+import typing
 from functools import wraps
 import getpass
 import logging
@@ -16,6 +18,7 @@ import click
 import keyring
 from git import Repo, Blob, Tree
 from git.config import cp
+from fnmatch import fnmatch
 
 from sharelatex import (
     SyncClient,
@@ -23,6 +26,8 @@ from sharelatex import (
     set_logger,
     walk_project_data,
     walk_folders,
+    AUTH_DICT,
+    Authenticator
 )
 
 logger = logging.getLogger(__name__)
