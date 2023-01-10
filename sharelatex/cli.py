@@ -349,6 +349,7 @@ def getClient(
                 login_path=login_path,
                 username_tag=username_tag
             )
+            break
         except Exception as inst:
             client = None
             logger.warning(f"{inst}  : attempt # {i + 1} ")
