@@ -540,6 +540,8 @@ class SyncClient:
                 username=username,
                 password=password,
                 verify=self.verify,
+                login_path=login_path,
+                username_tag=username_tag
             )
             data_time = time.time()
             data[k] = ((self.login_data, self.cookie), data_time)
@@ -557,7 +559,6 @@ class SyncClient:
         """
 
         url = f"{self.base_url}/project/{project_id}"
-
         # use thread local storage to pass the project data
         storage = threading.local()
         storage.is_data = False
