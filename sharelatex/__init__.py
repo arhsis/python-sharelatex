@@ -1,5 +1,4 @@
 import logging
-import typing
 from typing import Any, Callable, Dict, Optional, Tuple
 
 # try to find CAS form
@@ -477,7 +476,7 @@ class SyncClient:
         password: str = None,
         verify: bool = True,
         authenticator: Authenticator = None,
-        login_path: typing.Optional[str] = None,
+        login_path: Optional[str] = None,
         username_tag: str = "email"
     ):
         """Creates the client.

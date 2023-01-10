@@ -1,12 +1,10 @@
-import functools
-import typing
-from functools import wraps
+from functools import wraps, partial
 import getpass
 import logging
 import os
 from pathlib import Path
 import tempfile
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, MutableSet, Optional, Callable
 from zipfile import ZipFile
 import datetime
 import time
@@ -331,7 +329,7 @@ def getClient(
     password,
     verify,
     save_password=None,
-    login_path: typing.Optional[str] = None,
+    login_path: Optional[str] = None,
     username_tag="email"
 ) -> SyncClient:
     logger.info(f"try to open session on {base_url} with {username}")
@@ -457,13 +455,13 @@ def authentication_options(function):
         "-l",
         default=login_default,
         help=f"""Only useful with the legacy authentication. You can pass here the login path, e.g., ldap/login.
-        Default: '{login_default}'""",
+        \n\nDefault: '{login_default}'""",
     )(function)
     login_username_tag_default = "email"
     function = click.option(
         "--login-username-tag",
         default=login_username_tag_default,
-        help=f"""Most services expect email=..., password=.... However, some expect login=...,password. Thus, you can pass this other tag via this option. Default='{login_username_tag_default}'""",
+        help=f"""Most services expect email=..., password=.... However, some expect login=...,password. Thus, you can pass this other tag via this option. \n\nDefault='{login_username_tag_default}'""",
     )(function)
     return function
 
@@ -485,8 +483,8 @@ def _match_no_line(lines: List[str], file_name: str) -> bool:
     return True
 
 def _create_line_matchers(
-    white_list: typing.Optional[Path], working_dir: str
-) -> typing.Callable[..., bool]:
+    white_list: Optional[Path], working_dir: str
+) -> Callable[..., bool]:
     git_ignore_path = Path(os.path.join(working_dir, _GIT_IGNORE_TXT))
     if git_ignore_path.is_file():
         with git_ignore_path.open() as f_read:
@@ -507,7 +505,7 @@ def _create_line_matchers(
             white_list_entries = f_read.readlines()
         for white_list_entry in white_list_entries:
             lines.append(white_list_entry.strip())
-    line_matcher = functools.partial(_match_no_line, lines=lines)
+    line_matcher = partial(_match_no_line, lines=lines)
     return line_matcher
 
 
@@ -515,12 +513,12 @@ def _sync_deleted_items(
     working_path: Path,
     remote_items: Dict[Any, Any],
     objetcs: List[Union[Blob, Tree]],
-    allow_list_for_local_files: typing.Optional[str] =None
+    allow_list_for_local_files: Optional[str] =None
 ) -> None:
     is_not_on_the_allowance_list = _create_line_matchers(allow_list_for_local_files, working_path)
     remote_path = [Path(fd["folder_path"]).joinpath(fd["name"]) for fd in remote_items]
-    directories_to_preserve: typing.MutableSet[str] = set()
-    directories_to_delete: typing.MutableSet[Blob] = set()
+    directories_to_preserve: MutableSet[str] = set()
+    directories_to_delete: MutableSet[Blob] = set()
 
     for blob_path in objetcs:
         p_relative = blob_path.relative_to(working_path)
@@ -548,7 +546,7 @@ def _sync_deleted_items(
 
 def _get_datetime_from_git(repo, branch, files, working_path):
     datetimes_dict = {}
-    commits_already_checked:typing.MutableSet[str] = set()
+    commits_already_checked: MutableSet[str] = set()
     for p in files:
         commits = repo.iter_commits(branch)
         p_relative = p.relative_to(working_path)
@@ -655,7 +653,7 @@ def _sync_remote_docs(
                 os.utime(local_path, (remote_time.timestamp(), remote_time.timestamp()))
 
 
-def _pull(repo, client, project_id, git_branch: typing.Optional[str] = None, allow_list_for_local_files:typing.Optional[str]=None) -> None:
+def _pull(repo, client, project_id, git_branch: Optional[str] = None, allow_list_for_local_files: Optional[str]=None) -> None:
     # attempt to "merge" the remote and the local working copy
 
     git = repo.git
@@ -828,22 +826,22 @@ def share(
        you will be required to fix the conflict manually
     """
 )
-@click.option("--git-branch", '-b', default=SYNC_BRANCH, help="The branch we will check out.")
+@click.option("--git-branch", '-b', default=SYNC_BRANCH, help=f"The name of a branch. We will commit the changes from Sharelatex on this file.\n\n Default: {SYNC_BRANCH}")
 @click.option("--allow-list-for-local-files", default=None, help="You can pass a file with patterns. Local files that match these patterns will not be deleted although they are not present on the server", type=click.Path(exists=True, dir_okay=False))
 @authentication_options
 @log_options
 @handle_exception(RepoNotCleanError)
 def pull(
     auth_type: str,
-    username: typing.Optional[str],
-    password: typing.Optional[str],
+    username: Optional[str],
+    password: Optional[str],
     save_password: bool,
     ignore_saved_user_info,
     verbose,
     login_path: str,
     login_username_tag: str,
     git_branch: str,
-    allow_list_for_local_files : typing.Optional[str]
+    allow_list_for_local_files : Optional[str]
 ) -> None:
     set_log_level(verbose)
 
@@ -1188,6 +1186,7 @@ def new(
             logger.debug(f"delete failed project {project_id} into server ")
             client.delete(project_id, forever=True)
             raise inst
+
 
 if __name__ == '__main__':
     cli()
