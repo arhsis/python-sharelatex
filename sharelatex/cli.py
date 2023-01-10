@@ -30,6 +30,9 @@ from sharelatex import (
     Authenticator
 )
 
+_GIT_IGNORE_TXT = ".gitignore"
+_DEFAULT_IGNORED_FILES = [os.path.join(".git", "*"), ".git*"]
+
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler()
 logger.setLevel(logging.INFO)
