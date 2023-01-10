@@ -512,18 +512,38 @@ def _create_line_matchers(
 
 
 def _sync_deleted_items(
-    working_path: Path, remote_items: Dict[Any, Any], objetcs: List[Union[Blob, Tree]]
-):
+    working_path: Path,
+    remote_items: Dict[Any, Any],
+    objetcs: List[Union[Blob, Tree]],
+    allow_list_for_local_files: typing.Optional[str] =None
+) -> None:
+    is_not_on_the_allowance_list = _create_line_matchers(allow_list_for_local_files, working_path)
     remote_path = [Path(fd["folder_path"]).joinpath(fd["name"]) for fd in remote_items]
+    directories_to_preserve: typing.MutableSet[str] = set()
+    directories_to_delete: typing.MutableSet[Blob] = set()
+
     for blob_path in objetcs:
         p_relative = blob_path.relative_to(working_path)
         # check the path and all of its parents dir
         if p_relative not in remote_path:
+            if is_not_on_the_allowance_list(file_name=p_relative):
             logger.debug(f"delete {blob_path}")
             if blob_path.is_dir():
-                blob_path.rmdir()
+                    directories_to_delete.add(blob_path)
             else:
                 Path.unlink(blob_path)
+            else:
+                logger.debug(f"The file {p_relative} is on the local allow list.")
+                parent_dir = os.path.dirname(p_relative)
+                if parent_dir != "":
+                    directories_to_preserve.add(parent_dir)
+    for directory_to_delete in directories_to_delete:
+        p_relative = directory_to_delete.relative_to(working_path)
+        if str(p_relative) in directories_to_preserve:
+            logger.debug(f"There is a file on the allowance list that tells us to keep this folder.")
+        else:
+            directory_to_delete.rmdir()
+
 
 
 def _get_datetime_from_git(repo, branch, files, working_path):
