@@ -267,6 +267,12 @@ class DefaultAuthenticator(Authenticator):
                 testing instance)
         """
         super().__init__()
+        # Define attributes here to remove linter warning.
+        self.username = None
+        self.password = None
+        self.login_url = None
+        self.verify = False
+        self.sid_name = None
 
     def authenticate(
         self,
