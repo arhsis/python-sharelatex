@@ -828,17 +828,23 @@ def share(
        you will be required to fix the conflict manually
     """
 )
+@click.option("--git-branch", '-b', default=SYNC_BRANCH, help="The branch we will check out.")
+@click.option("--allow-list-for-local-files", default=None, help="You can pass a file with patterns. Local files that match these patterns will not be deleted although they are not present on the server", type=click.Path(exists=True, dir_okay=False))
 @authentication_options
 @log_options
 @handle_exception(RepoNotCleanError)
 def pull(
-    auth_type,
-    username,
-    password,
-    save_password,
+    auth_type: str,
+    username: typing.Optional[str],
+    password: typing.Optional[str],
+    save_password: bool,
     ignore_saved_user_info,
     verbose,
-):
+    login_path: str,
+    login_username_tag: str,
+    git_branch: str,
+    allow_list_for_local_files : typing.Optional[str]
+) -> None:
     set_log_level(verbose)
 
     # Fail if the repo is not clean
@@ -855,8 +861,10 @@ def pull(
         password,
         https_cert_check,
         save_password,
+        login_path=login_path,
+        username_tag=login_username_tag
     )
-    _pull(repo, client, project_id)
+    _pull(repo, client, project_id, git_branch=git_branch, allow_list_for_local_files=allow_list_for_local_files)
 
 
 @cli.command(
