@@ -364,10 +364,10 @@ def getClient(
     return client
 
 
-def update_ref(repo, message="update_ref"):
+def update_ref(repo, message="update_ref", git_branch:str = SYNC_BRANCH) -> None:
     """Makes the remote pointer to point on the latest revision we have.
 
-    This is called after a successfull clone, push, new. In short when we
+    This is called after a successful clone, push, new. In short when we
     are sure the remote and the local are in sync.
     """
     git = repo.git
@@ -375,7 +375,7 @@ def update_ref(repo, message="update_ref"):
     git.add(".")
     # with this we can have two consecutive commit with the same content
     repo.index.commit(f"{message}")
-    sync_branch = repo.create_head(SYNC_BRANCH, force=True)
+    sync_branch = repo.create_head(git_branch, force=True)
     sync_branch.commit = "HEAD"
 
 
