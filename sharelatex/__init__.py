@@ -325,6 +325,7 @@ class LegacyAuthenticator(DefaultAuthenticator):
         verify: bool = True,
         login_path="/login",
         sid_name="sharelatex.sid",
+        username_tag: str = "email"
     ) -> Tuple[str, str]:
         self.login_url = urllib.parse.urljoin(base_url, login_path)
         self.username = username
@@ -334,11 +335,11 @@ class LegacyAuthenticator(DefaultAuthenticator):
 
         r = self.session.get(self.login_url, verify=self.verify)
         self.csrf = get_csrf_Token(r.text)
-        self.login_data = dict(
-            email=self.username,
-            password=self.password,
-            _csrf=self.csrf,
-        )
+        self.login_data = {
+            "password": self.password,
+            "_csrf": self.csrf,
+            username_tag: self.username,
+        }
         logger.debug("try login")
         _r = self.session.post(self.login_url, data=self.login_data, verify=self.verify)
         _r.raise_for_status()
