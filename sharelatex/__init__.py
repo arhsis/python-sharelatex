@@ -460,7 +460,7 @@ AUTH_DICT = {
 }
 
 
-def get_authenticator_class(auth_type: str):
+def get_authenticator_class(auth_type: str) -> Authenticator.__class__:
     auth_type = auth_type.lower()
     try:
         return AUTH_DICT[auth_type]
@@ -477,6 +477,8 @@ class SyncClient:
         password: str = None,
         verify: bool = True,
         authenticator: Authenticator = None,
+        login_path: typing.Optional[str] = None,
+        username_tag: str = "email"
     ):
         """Creates the client.
 
@@ -489,7 +491,8 @@ class SyncClient:
             password (str): Password of the user
             verify (bool): True iff SSL certificates must be verified
             authenticator Authenticator to use
-
+            login_path (str): If the login is not at /login, you can pass a different path here.
+            username_tag (str): If the service expects not 'email', but e.g., 'login', you can pass this tag name here.
         """
         if base_url == "":
             raise Exception("projet_url is not well formed or missing")
