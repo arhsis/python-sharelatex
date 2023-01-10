@@ -478,6 +478,38 @@ def test(verbose):
     logger.warning("warning")
     print("print")
 
+def _match_no_line(lines: List[str], file_name: str) -> bool:
+    for current_line in lines:
+        if fnmatch(file_name, current_line):
+            return False
+    return True
+
+def _create_line_matchers(
+    white_list: typing.Optional[Path], working_dir: str
+) -> typing.Callable[..., bool]:
+    git_ignore_path = Path(os.path.join(working_dir, _GIT_IGNORE_TXT))
+    if git_ignore_path.is_file():
+        with git_ignore_path.open() as f_read:
+            lines = f_read.readlines()
+    else:
+        lines = []
+    lines = list(
+        [
+            current_line.strip()
+            for current_line in lines
+            if not current_line.startswith("#") and current_line.strip() != ""
+        ]
+        + _DEFAULT_IGNORED_FILES
+    )
+    if white_list is not None:
+        lines.append(os.path.basename(white_list))
+        with open(white_list) as f_read:
+            white_list_entries = f_read.readlines()
+        for white_list_entry in white_list_entries:
+            lines.append(white_list_entry.strip())
+    line_matcher = functools.partial(_match_no_line, lines=lines)
+    return line_matcher
+
 
 def _sync_deleted_items(
     working_path: Path, remote_items: Dict[Any, Any], objetcs: List[Union[Blob, Tree]]
