@@ -451,7 +451,20 @@ def authentication_options(function):
         default=False,
         help="""Forget user account information already saved (in OS keyring system)""",
     )(function)
-
+    login_default = "/login"
+    function = click.option(
+        "--login-path",
+        "-l",
+        default=login_default,
+        help=f"""Only useful with the legacy authentication. You can pass here the login path, e.g., ldap/login.
+        Default: '{login_default}'""",
+    )(function)
+    login_username_tag_default = "email"
+    function = click.option(
+        "--login-username-tag",
+        default=login_username_tag_default,
+        help=f"""Most services expect email=..., password=.... However, some expect login=...,password. Thus, you can pass this other tag via this option. Default='{login_username_tag_default}'""",
+    )(function)
     return function
 
 
