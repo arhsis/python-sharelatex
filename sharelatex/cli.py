@@ -423,7 +423,8 @@ def authentication_options(function):
         "--auth_type",
         "-a",
         default=None,
-        help="""Authentification type (gitlab|community|legacy).""",
+        help="""Authentification type.""",
+        type=click.Choice(AUTH_DICT.keys())
     )(function)
 
     function = click.option(
