@@ -239,6 +239,9 @@ class Authenticator:
         username: str = None,
         password: str = None,
         verify: bool = True,
+        login_path="/login",
+        sid_name="sharelatex.sid",
+        username_tag: str = "email"
     ) -> Tuple[str, Dict]:
         """Authenticate.
 
@@ -246,16 +249,17 @@ class Authenticator:
             Tuple of login data and the cookie (containing the session id)
             These two informations can be use to forge further requests
         """
-        return None
+        raise NotImplemented
 
 
 class DefaultAuthenticator(Authenticator):
+
     def __init__(
         self,
     ):
         """Use the default login form of the community edition.
 
-        Args:
+
             login_url: full url where the login form can be found
             username: username to use (an email address)
             password: the password to use
