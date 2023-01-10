@@ -548,12 +548,18 @@ def _sync_deleted_items(
 
 def _get_datetime_from_git(repo, branch, files, working_path):
     datetimes_dict = {}
+    commits_already_checked:typing.MutableSet[str] = set()
     for p in files:
         commits = repo.iter_commits(branch)
         p_relative = p.relative_to(working_path)
         if not str(p_relative).startswith(".git"):
             if p not in datetimes_dict:
                 for c in commits:
+                    if c.hexsha in commits_already_checked:
+                        logger.debug(f"We have already checked the commit with the SHA {c.hexsha}")
+                        continue
+                    else:
+                        commits_already_checked.add(c.hexsha)
                     re = repo.git.show("--pretty=", "--name-only", c.hexsha)
                     if re != "":
                         commit_file_list = re.split("\n")
