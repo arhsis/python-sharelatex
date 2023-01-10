@@ -260,11 +260,6 @@ class DefaultAuthenticator(Authenticator):
         """Use the default login form of the community edition.
 
 
-            login_url: full url where the login form can be found
-            username: username to use (an email address)
-            password: the password to use
-            verify: True to enable SSL verification (use False for self-signed
-                testing instance)
         """
         super().__init__()
         # Define attributes here to remove linter warning.
@@ -283,6 +278,18 @@ class DefaultAuthenticator(Authenticator):
         login_path="/login",
         sid_name="sharelatex.sid",
     ) -> Tuple[str, str]:
+        """
+        Authenticate.
+        Args:
+            login_path: Path where the login form can be found
+            username: username to use (an email address)
+            password: the password to use
+            verify: True to enable SSL verification (use False for self-signed
+                testing instance)
+            username_tag: Usually, we have to authenticate with email,password.
+            However, some services expect not email to be sent, but e.g., login=...,password=...
+            Thus, we have to pass this through.
+        """
         self.login_url = urllib.parse.urljoin(base_url, login_path)
         self.username = username
         self.password = password
