@@ -331,11 +331,13 @@ def getClient(
     password,
     verify,
     save_password=None,
-):
+    login_path: typing.Optional[str] = None,
+    username_tag="email"
+) -> SyncClient:
     logger.info(f"try to open session on {base_url} with {username}")
     client = None
 
-    authenticator = get_authenticator_class(auth_type)()
+    authenticator: Authenticator = get_authenticator_class(auth_type)()
     for i in range(MAX_NUMBER_ATTEMPTS):
         try:
             client = SyncClient(
@@ -344,6 +346,8 @@ def getClient(
                 password=password,
                 verify=verify,
                 authenticator=authenticator,
+                login_path=login_path,
+                username_tag=username_tag
             )
         except Exception as inst:
             client = None
