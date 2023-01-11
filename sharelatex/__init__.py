@@ -607,10 +607,33 @@ class SyncClient:
     def _request(self, verb, url, *args, **kwargs):
         headers = kwargs.get("headers", {})
         headers.update(self.headers)
+        headers["Accept-Encoding"] = "gzip, deflate, br"
+        headers["Accept-Language"] = "en-US,en;q=0.9"
+        headers["DNT"] = "1"
+        headers["Host"] = "sharelatex.tum.de"
+        headers["Origin"] = "https://sharelatex.tum.de"
+        headers["Pragma"] = "no-cache"
+        headers[
+            "Referer"
+        ] = "https://sharelatex.tum.de/project/63bc1f716ed4c6cc709aa194"
+        headers["sec-ch-ua"] = '"Not?A_Brand";v="8", "Chromium";v="108", "Brave";v="108"'
+        headers["sec-ch-ua-mobile"] = '?0'
+        headers["sec-ch-ua-platform"] = '"macOS"'
+        headers["Sec-Fetch-Dest"] = 'empty'
+        headers["Sec-Fetch-Mode"] = 'cors'
+        headers["Sec-Fetch-Site"] = 'same-origin'
+        headers["Sec-GPC"] = '1'
+        headers["Cache-Control"] = "no-cache"
+        del headers['user-agent']
+        headers["User-Agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
         kwargs["headers"] = headers
         cookies = kwargs.get("cookies", {})
         cookies.update(self.cookie)
         kwargs["cookies"] = cookies
+        if 'upload' in url:
+            del kwargs["cookies"]
+            r = self.client.get("https://sharelatex.tum.de/ldap/login", verify=self.verify)
+            headers["X-CSRF-TOKEN"] = get_csrf_Token(r.text)
         r = self.client.request(verb, url, *args, **kwargs)
         r.raise_for_status()
         return r
@@ -857,13 +880,18 @@ class SyncClient:
         mime = filetype.guess(str(path))
         if not mime:
             mime = "text/plain"
-        files = {"qqfile": (path.name, open(path, "rb"), mime)}
+        files = {
+            "relativePath": (None, "null"),
+            "name": (None, path.name),
+            "type": (None, "application/octet-stream"),
+            "qqfile": (path.name, open(path, "rb"), "application/octet-stream"),
+        }
         params = {
             "folder_id": folder_id,
-            "_csrf": self.login_data["_csrf"],
-            "qquid": str(uuid.uuid4()),
-            "qqfilename": path.name,
-            "qqtotalfilesize": os.path.getsize(path),
+            # "_csrf": self.login_data["_csrf"],
+            # "qquid": str(uuid.uuid4()),
+            # "qqfilename": path.name,
+            # "qqtotalfilesize": os.path.getsize(path),
         }
         r = self._post(url, params=params, files=files, verify=self.verify)
         r.raise_for_status()
