@@ -28,6 +28,7 @@ from sharelatex import (
     walk_project_data,
 )
 
+AUTHENTICATION_TYPES = typing.Literal["gitlab", "community", "legacy"]
 _GIT_IGNORE_TXT = ".gitignore"
 _DEFAULT_IGNORED_FILES = [os.path.join(".git", "*"), ".git*"]
 
