@@ -631,10 +631,20 @@ class SyncClient:
             r = self.client.get(
                 urllib.parse.urljoin(self.base_url, self.login_path), verify=self.verify
             )
-            headers["X-CSRF-TOKEN"] = get_csrf_Token(r.text)
-        r = self.client.request(verb, url, *args, **kwargs)
-        r.raise_for_status()
-        return r
+            current_csrf_token = get_csrf_Token(r.text)
+            if (
+                kwargs is not None
+                and hasattr(kwargs, "keys")
+                and "params" in kwargs.keys()
+                and hasattr(kwargs["params"], "keys")
+                and "_csrf" in kwargs["params"].keys()
+            ):
+                kwargs["params"]["_csrf"] = current_csrf_token
+            else:
+                headers["X-CSRF-TOKEN"] = current_csrf_token
+        r_1 = self.client.request(verb, url, *args, **kwargs)
+        r_1.raise_for_status()
+        return r_1
 
     def _get(self, url, *args, **kwargs):
         return self._request("GET", url, *args, **kwargs)
@@ -984,7 +994,7 @@ class SyncClient:
         files = {"qqfile": (filename, open(path, "rb"), mime)}
         params = {
             "_csrf": self.login_data["_csrf"],
-            "qquid": str(uuid.uuid4()),
+            "qquuid": str(uuid.uuid4()),
             "qqfilename": filename,
             "qqtotalfilesize": os.path.getsize(path),
         }
