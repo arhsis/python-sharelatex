@@ -959,7 +959,9 @@ def clone(
     https_cert_check,
     whole_project_download,
     verbose,
-):
+    login_username_tag: str,
+    login_path: str,
+) -> None:
     set_log_level(verbose)
     # TODO : robust parse regexp
     slashparts = projet_url.split("/")
@@ -992,6 +994,8 @@ def clone(
             password,
             https_cert_check,
             save_password,
+            login_path=login_path,
+            username_tag=login_username_tag,
         )
     except Exception as inst:
         import shutil
