@@ -1074,15 +1074,24 @@ def _push(
 
     project_data = client.get_project_data(project_id)
     folders = {f["folder_id"] for f in walk_folders(project_data)}
+    is_not_on_the_allowance_list = _create_line_matchers(
+            allow_list_for_local_files, repo.working_dir
+    )
 
-    logger.debug("Modify files to upload :")
+    logger.debug("Modified files to upload :")
     for d in diff_index.iter_change_type("M"):
+        if not is_not_on_the_allowance_list(file_name=d.a_path):
+            logger.debug(f"{d.a_path} is on the list of only local files defined in {allow_list_for_local_files}")
+            continue
         if _upload(repo, client, project_data, d.a_path) not in folders:
             project_data = client.get_project_data(project_id)
             folders = {f["folder_id"] for f in walk_folders(project_data)}
 
     logger.debug("new files to upload :")
     for d in diff_index.iter_change_type("A"):
+        if not is_not_on_the_allowance_list(file_name=d.a_path):
+            logger.debug(f"{d.a_path} is on the list of only local files defined in {allow_list_for_local_files}")
+            continue
         if _upload(repo, client, project_data, d.a_path) not in folders:
             project_data = client.get_project_data(project_id)
             folders = {f["folder_id"] for f in walk_folders(project_data)}
