@@ -25,7 +25,7 @@ from sharelatex import (
     walk_project_data,
     walk_folders,
     AUTH_DICT,
-    Authenticator
+    Authenticator,
 )
 
 _GIT_IGNORE_TXT = ".gitignore"
@@ -330,7 +330,7 @@ def getClient(
     verify,
     save_password=None,
     login_path: Optional[str] = None,
-    username_tag="email"
+    username_tag="email",
 ) -> SyncClient:
     logger.info(f"try to open session on {base_url} with {username}")
     client = None
@@ -345,7 +345,7 @@ def getClient(
                 verify=verify,
                 authenticator=authenticator,
                 login_path=login_path,
-                username_tag=username_tag
+                username_tag=username_tag,
             )
             break
         except Exception as inst:
@@ -362,7 +362,7 @@ def getClient(
     return client
 
 
-def update_ref(repo, message="update_ref", git_branch:str = SYNC_BRANCH) -> None:
+def update_ref(repo, message="update_ref", git_branch: str = SYNC_BRANCH) -> None:
     """Makes the remote pointer to point on the latest revision we have.
 
     This is called after a successful clone, push, new. In short when we
@@ -422,7 +422,7 @@ def authentication_options(function):
         "-a",
         default=None,
         help="""Authentification type.""",
-        type=click.Choice(AUTH_DICT.keys())
+        type=click.Choice(AUTH_DICT.keys()),
     )(function)
 
     function = click.option(
@@ -454,14 +454,17 @@ def authentication_options(function):
         "--login-path",
         "-l",
         default=login_default,
-        help=f"""Only useful with the legacy authentication. You can pass here the login path, e.g., ldap/login.
+        help=f"""Only useful with the legacy authentication. You can pass
+        here the login path, e.g., ldap/login.
         \n\nDefault: '{login_default}'""",
     )(function)
     login_username_tag_default = "email"
     function = click.option(
         "--login-username-tag",
         default=login_username_tag_default,
-        help=f"""Most services expect email=..., password=.... However, some expect login=...,password. Thus, you can pass this other tag via this option. \n\nDefault='{login_username_tag_default}'""",
+        help=f"""Most services expect email=..., password=....
+        However, some expect login=...,password. Thus, you can pass this other
+        tag via this option. \n\nDefault='{login_username_tag_default}'""",
     )(function)
     return function
 
@@ -476,11 +479,13 @@ def test(verbose):
     logger.warning("warning")
     print("print")
 
+
 def _match_no_line(lines: List[str], file_name: str) -> bool:
     for current_line in lines:
         if fnmatch(file_name, current_line):
             return False
     return True
+
 
 def _create_line_matchers(
     white_list: Optional[Path], working_dir: str
@@ -513,9 +518,11 @@ def _sync_deleted_items(
     working_path: Path,
     remote_items: Dict[Any, Any],
     objetcs: List[Union[Blob, Tree]],
-    allow_list_for_local_files: Optional[str] =None
+    allow_list_for_local_files: Optional[str] = None,
 ) -> None:
-    is_not_on_the_allowance_list = _create_line_matchers(allow_list_for_local_files, working_path)
+    is_not_on_the_allowance_list = _create_line_matchers(
+        allow_list_for_local_files, working_path
+    )
     remote_path = [Path(fd["folder_path"]).joinpath(fd["name"]) for fd in remote_items]
     directories_to_preserve: MutableSet[str] = set()
     directories_to_delete: MutableSet[Blob] = set()
@@ -538,10 +545,12 @@ def _sync_deleted_items(
     for directory_to_delete in directories_to_delete:
         p_relative = directory_to_delete.relative_to(working_path)
         if str(p_relative) in directories_to_preserve:
-            logger.debug(f"There is a file on the allowance list that tells us to keep this folder.")
+            logger.debug(
+                "There is a file on the allowance list that tells "
+                "us to keep this folder."
+            )
         else:
             directory_to_delete.rmdir()
-
 
 
 def _get_datetime_from_git(repo, branch, files, working_path):
@@ -554,7 +563,10 @@ def _get_datetime_from_git(repo, branch, files, working_path):
             if p not in datetimes_dict:
                 for c in commits:
                     if c.hexsha in commits_already_checked:
-                        logger.debug(f"We have already checked the commit with the SHA {c.hexsha}")
+                        logger.debug(
+                            f"We have already checked the commit with the "
+                            f"SHA {c.hexsha}"
+                        )
                         continue
                     else:
                         commits_already_checked.add(c.hexsha)
@@ -653,7 +665,13 @@ def _sync_remote_docs(
                 os.utime(local_path, (remote_time.timestamp(), remote_time.timestamp()))
 
 
-def _pull(repo, client, project_id, git_branch: Optional[str] = None, allow_list_for_local_files: Optional[str]=None) -> None:
+def _pull(
+    repo,
+    client,
+    project_id,
+    git_branch: Optional[str] = None,
+    allow_list_for_local_files: Optional[str] = None,
+) -> None:
     # attempt to "merge" the remote and the local working copy
 
     git = repo.git
@@ -685,11 +703,14 @@ def _pull(repo, client, project_id, git_branch: Optional[str] = None, allow_list
         objects = [Path(b.abspath) for b in repo.head.commit.tree.traverse()]
         objects.reverse()
 
-        datetimes_dict = _get_datetime_from_git(
-            repo, git_branch, objects, working_path
-        )
+        datetimes_dict = _get_datetime_from_git(repo, git_branch, objects, working_path)
 
-        _sync_deleted_items(working_path, remote_items, objects, allow_list_for_local_files=allow_list_for_local_files)
+        _sync_deleted_items(
+            working_path,
+            remote_items,
+            objects,
+            allow_list_for_local_files=allow_list_for_local_files,
+        )
 
         _sync_remote_files(
             client, project_id, working_path, remote_items, datetimes_dict
@@ -826,8 +847,21 @@ def share(
        you will be required to fix the conflict manually
     """
 )
-@click.option("--git-branch", '-b', default=SYNC_BRANCH, help=f"The name of a branch. We will commit the changes from Sharelatex on this file.\n\n Default: {SYNC_BRANCH}")
-@click.option("--allow-list-for-local-files", default=None, help="You can pass a file with patterns. Local files that match these patterns will not be deleted although they are not present on the server", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--git-branch",
+    "-b",
+    default=SYNC_BRANCH,
+    help=f"The name of a branch. We will commit the changes from Sharelatex "
+    f"on this file.\n\n Default: {SYNC_BRANCH}",
+)
+@click.option(
+    "--allow-list-for-local-files",
+    default=None,
+    help="""You can pass a file with patterns. Local files that match these
+    patterns will not be deleted although they are not present on the
+    server""",
+    type=click.Path(exists=True, dir_okay=False),
+)
 @authentication_options
 @log_options
 @handle_exception(RepoNotCleanError)
@@ -841,7 +875,7 @@ def pull(
     login_path: str,
     login_username_tag: str,
     git_branch: str,
-    allow_list_for_local_files : Optional[str]
+    allow_list_for_local_files: Optional[str],
 ) -> None:
     set_log_level(verbose)
 
@@ -860,9 +894,15 @@ def pull(
         https_cert_check,
         save_password,
         login_path=login_path,
-        username_tag=login_username_tag
+        username_tag=login_username_tag,
     )
-    _pull(repo, client, project_id, git_branch=git_branch, allow_list_for_local_files=allow_list_for_local_files)
+    _pull(
+        repo,
+        client,
+        project_id,
+        git_branch=git_branch,
+        allow_list_for_local_files=allow_list_for_local_files,
+    )
 
 
 @cli.command(
@@ -1188,5 +1228,5 @@ def new(
             raise inst
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()

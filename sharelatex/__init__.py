@@ -240,7 +240,7 @@ class Authenticator:
         verify: bool = True,
         login_path="/login",
         sid_name="sharelatex.sid",
-        username_tag: str = "email"
+        username_tag: str = "email",
     ) -> Tuple[str, Dict]:
         """Authenticate.
 
@@ -248,18 +248,14 @@ class Authenticator:
             Tuple of login data and the cookie (containing the session id)
             These two informations can be use to forge further requests
         """
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class DefaultAuthenticator(Authenticator):
-
     def __init__(
         self,
     ):
-        """Use the default login form of the community edition.
-
-
-        """
+        """Use the default login form of the community edition."""
         super().__init__()
         # Define attributes here to remove linter warning.
         self.username = None
@@ -286,7 +282,8 @@ class DefaultAuthenticator(Authenticator):
             verify: True to enable SSL verification (use False for self-signed
                 testing instance)
             username_tag: Usually, we have to authenticate with email,password.
-            However, some services expect not email to be sent, but e.g., login=...,password=...
+            However, some services expect not email to be sent,
+            but e.g., login=...,password=...
             Thus, we have to pass this through.
         """
         self.login_url = urllib.parse.urljoin(base_url, login_path)
@@ -324,7 +321,7 @@ class LegacyAuthenticator(DefaultAuthenticator):
         verify: bool = True,
         login_path="/login",
         sid_name="sharelatex.sid",
-        username_tag: str = "email"
+        username_tag: str = "email",
     ) -> Tuple[str, str]:
         self.login_url = urllib.parse.urljoin(base_url, login_path)
         self.username = username
@@ -477,7 +474,7 @@ class SyncClient:
         verify: bool = True,
         authenticator: Authenticator = None,
         login_path: Optional[str] = None,
-        username_tag: str = "email"
+        username_tag: str = "email",
     ):
         """Creates the client.
 
@@ -490,12 +487,14 @@ class SyncClient:
             password (str): Password of the user
             verify (bool): True iff SSL certificates must be verified
             authenticator Authenticator to use
-            login_path (str): If the login is not at /login, you can pass a different path here.
-            username_tag (str): If the service expects not 'email', but e.g., 'login', you can pass this tag name here.
+            login_path (str): If the login is not at /login, you can pass a
+            different path here.
+            username_tag (str): If the service expects not 'email', but e.g.,
+            'login', you can pass this tag name here.
         """
         if base_url == "":
             raise Exception("project_url is not well formed or missing")
-        self.base_url = base_url.rstrip("/") # PS: the base URL should not end with /
+        self.base_url = base_url.rstrip("/")  # PS: the base URL should not end with /
         self.verify = verify
 
         # Used in _get, _post... to add common headers
@@ -540,7 +539,7 @@ class SyncClient:
                 password=password,
                 verify=self.verify,
                 login_path=login_path,
-                username_tag=username_tag
+                username_tag=username_tag,
             )
             data_time = time.time()
             data[k] = ((self.login_data, self.cookie), data_time)
