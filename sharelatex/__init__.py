@@ -489,6 +489,7 @@ class SyncClient:
         authenticator: Authenticator = None,
         login_path: Optional[str] = None,
         username_tag: str = "email",
+        force_update: bool = False,
     ):
         """Creates the client.
 
@@ -505,6 +506,7 @@ class SyncClient:
             different path here.
             username_tag (str): If the service expects not 'email', but e.g.,
             'login', you can pass this tag name here.
+
         """
         if base_url == "":
             raise Exception("project_url is not well formed or missing")
@@ -547,7 +549,7 @@ class SyncClient:
                 update_need = True
         else:
             update_need = True
-        if update_need:
+        if update_need or force_update:
             self.login_data, self.cookie = self.authenticator.authenticate(
                 base_url=self.base_url,
                 username=username,

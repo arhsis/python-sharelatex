@@ -335,7 +335,8 @@ def getClient(
     verify,
     save_password=None,
     login_path: Optional[str] = None,
-    username_tag="email",
+    username_tag: str = "email",
+    force_update: bool = False,
 ) -> SyncClient:
     logger.info(f"try to open session on {base_url} with {username}")
     client = None
@@ -351,6 +352,7 @@ def getClient(
                 authenticator=authenticator,
                 login_path=login_path,
                 username_tag=username_tag,
+                force_update=force_update,
             )
             break
         except Exception as inst:
@@ -1249,6 +1251,7 @@ def new(
         save_password,
         login_path=login_path,
         username_tag=login_username_tag,
+        force_update=True,
     )
 
     iter_file = repo.tree().traverse()
