@@ -780,7 +780,9 @@ def compile(
     save_password,
     ignore_saved_user_info,
     verbose,
-):
+    login_username_tag: str,
+    login_path: str,
+) -> None:
     set_log_level(verbose)
     repo = Repo()
     base_url, project_id, https_cert_check = refresh_project_information(repo)
@@ -795,6 +797,9 @@ def compile(
         password,
         https_cert_check,
         save_password,
+        login_path=login_path,
+        username_tag=login_username_tag,
+        force_update=True,
     )
 
     response = client.compile(project_id)
