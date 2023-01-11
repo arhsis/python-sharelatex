@@ -1,31 +1,31 @@
-from functools import wraps, partial
+import datetime
 import getpass
 import logging
 import os
-from pathlib import Path
-import tempfile
-from typing import Any, Dict, List, Union, MutableSet, Optional, Callable
-from zipfile import ZipFile
-import datetime
-import time
 import sys
-
-import dateutil.parser
+import tempfile
+import time
+import typing
+from fnmatch import fnmatch
+from functools import partial, wraps
+from pathlib import Path
+from typing import Any, Callable, Dict, List, MutableSet, Optional, Union
+from zipfile import ZipFile
 
 import click
+import dateutil.parser
 import keyring
-from git import Repo, Blob, Tree
+from git import Blob, Repo, Tree
 from git.config import cp
-from fnmatch import fnmatch
 
 from sharelatex import (
+    AUTH_DICT,
+    Authenticator,
     SyncClient,
     get_authenticator_class,
     set_logger,
-    walk_project_data,
     walk_folders,
-    AUTH_DICT,
-    Authenticator,
+    walk_project_data,
 )
 
 _GIT_IGNORE_TXT = ".gitignore"
