@@ -838,6 +838,23 @@ def share(
     logger.debug(response)
 
 
+_GIT_BRANCH_OPTION = click.option(
+    "--git-branch",
+    "-b",
+    default=SYNC_BRANCH,
+    help=f"The name of a branch. We will commit the changes from Sharelatex "
+    f"on this file.\n\n Default: {SYNC_BRANCH}",
+)
+_OPTIONS_ALLOWANCE_LIST = click.option(
+    "--allow-list-for-local-files",
+    default=None,
+    help="""You can pass a file with patterns. Local files that match these
+    patterns will not be deleted although they are not present on the
+    server""",
+    type=click.Path(exists=True, dir_okay=False),
+)
+
+
 @cli.command(
     help=f"""Pull the files from sharelatex.
 
@@ -848,21 +865,8 @@ def share(
        you will be required to fix the conflict manually
     """
 )
-@click.option(
-    "--git-branch",
-    "-b",
-    default=SYNC_BRANCH,
-    help=f"The name of a branch. We will commit the changes from Sharelatex "
-    f"on this file.\n\n Default: {SYNC_BRANCH}",
-)
-@click.option(
-    "--allow-list-for-local-files",
-    default=None,
-    help="""You can pass a file with patterns. Local files that match these
-    patterns will not be deleted although they are not present on the
-    server""",
-    type=click.Path(exists=True, dir_okay=False),
-)
+@_GIT_BRANCH_OPTION
+@_OPTIONS_ALLOWANCE_LIST
 @authentication_options
 @log_options
 @handle_exception(RepoNotCleanError)
@@ -1011,8 +1015,18 @@ def _upload(repo, client, project_data, path):
 
 
 def _push(
-    force, auth_type, username, password, save_password, ignore_saved_user_info, verbose
-):
+    force: bool,
+    auth_type: AUTHENTICATION_TYPES,
+    username: Optional[str],
+    password: Optional[str],
+    save_password: bool,
+    ignore_saved_user_info: bool,
+    verbose: int,
+    login_path: str,
+    login_username_tag: str,
+    git_branch: str,
+    allow_list_for_local_files: Optional[str],
+) -> None:
     set_log_level(verbose)
 
     def _delete(client, project_data, path):
@@ -1045,15 +1059,17 @@ def _push(
         password,
         https_cert_check,
         save_password,
+        login_path=login_path,
+        username_tag=login_username_tag,
     )
 
     if not force:
-        _pull(repo, client, project_id)
+        _pull(repo, client, project_id, git_branch=git_branch, allow_list_for_local_files=allow_list_for_local_files)
     config = Config(repo)
     # prevent git returning quoted path in diff when file path has unicode char
     config.set_value("core", "quotepath", "off")
     master_commit = repo.commit("HEAD")
-    sync_commit = repo.commit(SYNC_BRANCH)
+    sync_commit = repo.commit(git_branch)
     diff_index = sync_commit.diff(master_commit)
 
     project_data = client.get_project_data(project_id)
@@ -1108,19 +1124,25 @@ This works as follow:
    Note that only the files that have changed (modified/added/removed) will be uploaded.
 """
 )
+@_GIT_BRANCH_OPTION
 @click.option("--force", is_flag=True, help="Force push")
 @authentication_options
 @log_options
+@_OPTIONS_ALLOWANCE_LIST
 @handle_exception(RepoNotCleanError)
 def push(
-    force,
-    auth_type,
-    username,
-    password,
-    save_password,
-    ignore_saved_user_info,
-    verbose,
-):
+    force: bool,
+    auth_type: AUTHENTICATION_TYPES,
+    username: Optional[str],
+    password: Optional[str],
+    save_password: bool,
+    ignore_saved_user_info: bool,
+    verbose: int,
+    login_path: str,
+    login_username_tag: str,
+    git_branch: str,
+    allow_list_for_local_files: Optional[str],
+) -> None:
     _push(
         force,
         auth_type,
@@ -1129,6 +1151,10 @@ def push(
         save_password,
         ignore_saved_user_info,
         verbose,
+        login_path=login_path,
+        login_username_tag=login_username_tag,
+        git_branch=git_branch,
+        allow_list_for_local_files=allow_list_for_local_files
     )
 
 
