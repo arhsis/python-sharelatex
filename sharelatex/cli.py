@@ -1003,7 +1003,7 @@ def clone(
     # TODO(msimonin): add a decent default .gitignore ?
 
 
-def _upload(repo, client, project_data, path):
+def _upload(repo, client: SyncClient, project_data, path: str) -> str:
     # initial factorisation effort
     path = Path(path)
     logger.debug(f"Uploading {path}")
