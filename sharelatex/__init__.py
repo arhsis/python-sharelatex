@@ -1,27 +1,25 @@
 import logging
-from typing import Any, Callable, Dict, Optional, Tuple
-
-# try to find CAS form
-from lxml import html
 import os
-from pathlib import Path
+import pickle
 import re
-import requests
 import threading
+import time
 import urllib.parse
 import uuid
 import zipfile
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional, Tuple
 
+import requests
 from appdirs import user_data_dir
-import pickle
-import time
+
+# try to find CAS form
+from lxml import html
 
 import filetype
-from socketIO_client import SocketIO, BaseNamespace
-
+from socketIO_client import BaseNamespace, SocketIO
 
 from .__version__ import __version__
-
 
 logger = logging.getLogger(__name__)
 
