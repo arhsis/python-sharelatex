@@ -219,6 +219,10 @@ def get_csrf_Token(html_text):
 
 
 class Authenticator:
+    """
+    Authenticator.
+    """
+
     def __init__(self, session: Optional[requests.session] = None):
         self._session: requests.session = session
 
@@ -266,12 +270,13 @@ class DefaultAuthenticator(Authenticator):
 
     def authenticate(
         self,
-        base_url: str,
-        username: str,
-        password: str,
+        base_url: str = None,
+        username: str = None,
+        password: str = None,
         verify: bool = True,
         login_path="/login",
         sid_name="sharelatex.sid",
+        username_tag: str = "email",
     ) -> Tuple[str, str]:
         """
         Authenticate.
@@ -313,11 +318,15 @@ class CommunityAuthenticator(DefaultAuthenticator):
 
 
 class LegacyAuthenticator(DefaultAuthenticator):
+    """
+    Legacy authenticator.
+    """
+
     def authenticate(
         self,
-        base_url: str,
-        username: str,
-        password: str,
+        base_url: str = None,
+        username: str = None,
+        password: str = None,
         verify: bool = True,
         login_path="/login",
         sid_name="sharelatex.sid",
@@ -457,6 +466,9 @@ AUTH_DICT = {
 
 
 def get_authenticator_class(auth_type: str) -> Authenticator.__class__:
+    """
+    Return the class for the authenticator name.
+    """
     auth_type = auth_type.lower()
     try:
         return AUTH_DICT[auth_type]
@@ -465,6 +477,10 @@ def get_authenticator_class(auth_type: str) -> Authenticator.__class__:
 
 
 class SyncClient:
+    """
+    SyncClient.
+    """
+
     def __init__(
         self,
         *,
@@ -504,13 +520,13 @@ class SyncClient:
         # build the client and login
         self.client = requests.session()
         self.client.verify = verify
-        if authenticator is None:
-            # build a default authenticator based on the
-            # given credentials
-            authenticator = DefaultAuthenticator()
+
+        self.authenticator = (
+            authenticator if authenticator is not None else DefaultAuthenticator()
+        )
 
         # set the session to use for authentication
-        authenticator.session = self.client
+        self.authenticator.session = self.client
 
         expire_time = 1000  # seconds
         update_need = False
@@ -534,7 +550,7 @@ class SyncClient:
         else:
             update_need = True
         if update_need:
-            self.login_data, self.cookie = authenticator.authenticate(
+            self.login_data, self.cookie = self.authenticator.authenticate(
                 base_url=self.base_url,
                 username=username,
                 password=password,
@@ -612,8 +628,11 @@ class SyncClient:
         cookies = kwargs.get("cookies", {})
         cookies.update(self.cookie)
         kwargs["cookies"] = cookies
-        if verb == 'POST':
-            r = self.client.get(urllib.parse.urljoin(self.base_url, self.login_path), verify=self.verify)
+        if verb == "POST":
+            # PS: The upload to sharelatex.tum.de only works with a fresh CSRF token.
+            r = self.client.get(
+                urllib.parse.urljoin(self.base_url, self.login_path), verify=self.verify
+            )
             headers["X-CSRF-TOKEN"] = get_csrf_Token(r.text)
         r = self.client.request(verb, url, *args, **kwargs)
         r.raise_for_status()
@@ -841,7 +860,7 @@ class SyncClient:
 
         return r
 
-    def upload_file(self, project_id, folder_id, path):
+    def upload_file(self, project_id: str, folder_id: str, path: str):
         """Upload a file to sharelatex.
 
         Args:
@@ -856,24 +875,36 @@ class SyncClient:
             Exception if the file can't be uploaded
         """
         url = f"{self.base_url}/project/{project_id}/upload"
-        path = Path(path)
-        # TODO(msimonin): handle correctly the content-type
-        mime = filetype.guess(str(path))
-        if not mime:
-            mime = "text/plain"
-        files = {
-            "relativePath": (None, "null"),
-            "name": (None, path.name),
-            "type": (None, "application/octet-stream"),
-            "qqfile": (path.name, open(path, "rb"), "application/octet-stream"),
-        }
-        params = {
-            "folder_id": folder_id,
-            # "_csrf": self.login_data["_csrf"],
-            # "qquid": str(uuid.uuid4()),
-            # "qqfilename": path.name,
-            # "qqtotalfilesize": os.path.getsize(path),
-        }
+        path_as_path = Path(path)
+
+        if isinstance(self.authenticator, LegacyAuthenticator):
+            # PS: The upload to sharelatex.tum.de only works with this structure.
+            files = {
+                "relativePath": (None, "null"),
+                "name": (None, path_as_path.name),
+                "type": (None, "application/octet-stream"),
+                "qqfile": (
+                    path_as_path.name,
+                    path_as_path.open("rb"),
+                    "application/octet-stream",
+                ),
+            }
+            params = {
+                "folder_id": folder_id,
+            }
+        else:
+            # TODO(msimonin): handle correctly the content-type
+            mime = filetype.guess(str(path_as_path))
+            if not mime:
+                mime = "text/plain"
+            files = {"qqfile": (path_as_path.name, path_as_path.open("rb"), mime)}
+            params = {
+                "folder_id": folder_id,
+                "_csrf": self.login_data["_csrf"],
+                "qquid": str(uuid.uuid4()),
+                "qqfilename": path_as_path.name,
+                "qqtotalfilesize": os.path.getsize(path),
+            }
         r = self._post(url, params=params, files=files, verify=self.verify)
         r.raise_for_status()
         response = r.json()
