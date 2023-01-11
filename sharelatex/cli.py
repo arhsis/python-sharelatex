@@ -5,11 +5,12 @@ import os
 import sys
 import tempfile
 import time
-import typing
+
 from fnmatch import fnmatch
 from functools import partial, wraps
 from pathlib import Path
 from typing import Any, Callable, Dict, List, MutableSet, Optional, Union
+
 from zipfile import ZipFile
 
 import click
@@ -28,7 +29,12 @@ from sharelatex import (
     walk_project_data,
 )
 
-AUTHENTICATION_TYPES = typing.Literal["gitlab", "community", "legacy"]
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
+AUTHENTICATION_TYPES = Literal["gitlab", "community", "legacy"]
 _GIT_IGNORE_TXT = ".gitignore"
 _DEFAULT_IGNORED_FILES = [os.path.join(".git", "*"), ".git*"]
 
@@ -503,7 +509,7 @@ def _create_line_matchers(
             for current_line in lines
             if not current_line.startswith("#") and current_line.strip() != ""
         ]
-        + _DEFAULT_IGNORED_FILES
+        + _DEFAULT_IGNORED_FILES  # noqa: W503
     )
     if white_list is not None:
         lines.append(os.path.basename(white_list))
@@ -1064,7 +1070,13 @@ def _push(
     )
 
     if not force:
-        _pull(repo, client, project_id, git_branch=git_branch, allow_list_for_local_files=allow_list_for_local_files)
+        _pull(
+            repo,
+            client,
+            project_id,
+            git_branch=git_branch,
+            allow_list_for_local_files=allow_list_for_local_files,
+        )
     config = Config(repo)
     # prevent git returning quoted path in diff when file path has unicode char
     config.set_value("core", "quotepath", "off")
@@ -1075,13 +1087,16 @@ def _push(
     project_data = client.get_project_data(project_id)
     folders = {f["folder_id"] for f in walk_folders(project_data)}
     is_not_on_the_allowance_list = _create_line_matchers(
-            allow_list_for_local_files, repo.working_dir
+        allow_list_for_local_files, repo.working_dir
     )
 
     logger.debug("Modified files to upload :")
     for d in diff_index.iter_change_type("M"):
         if not is_not_on_the_allowance_list(file_name=d.a_path):
-            logger.debug(f"{d.a_path} is on the list of only local files defined in {allow_list_for_local_files}")
+            logger.debug(
+                f"{d.a_path} is on the list of only "
+                f"local files defined in {allow_list_for_local_files}"
+            )
             continue
         if _upload(repo, client, project_data, d.a_path) not in folders:
             project_data = client.get_project_data(project_id)
@@ -1090,7 +1105,10 @@ def _push(
     logger.debug("new files to upload :")
     for d in diff_index.iter_change_type("A"):
         if not is_not_on_the_allowance_list(file_name=d.a_path):
-            logger.debug(f"{d.a_path} is on the list of only local files defined in {allow_list_for_local_files}")
+            logger.debug(
+                f"{d.a_path} is on the list of only local "
+                f"files defined in {allow_list_for_local_files}"
+            )
             continue
         if _upload(repo, client, project_data, d.a_path) not in folders:
             project_data = client.get_project_data(project_id)
@@ -1163,7 +1181,7 @@ def push(
         login_path=login_path,
         login_username_tag=login_username_tag,
         git_branch=git_branch,
-        allow_list_for_local_files=allow_list_for_local_files
+        allow_list_for_local_files=allow_list_for_local_files,
     )
 
 

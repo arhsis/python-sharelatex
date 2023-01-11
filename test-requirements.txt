@@ -5,3 +5,4 @@ pytest
 sphinx-click
 keyrings.alt
 ddt
+typing-extensions ; python_version < '3.8'
