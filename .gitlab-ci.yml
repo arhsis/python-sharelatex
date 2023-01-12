@@ -81,7 +81,7 @@ py39-functionnal-1.2.1:
 py36-functionnal: &base-functionnal
   tags: [ ci.inria.fr, large ]
   stage: test
-  image: ghcr.io/pstoeckle/docker-images/docker-python-3.8:0.1.7
+  image: ghcr.io/pstoeckle/docker-images/docker-python-3.6:0.1.7
   variables:
     TOXENV: py36
   script:
