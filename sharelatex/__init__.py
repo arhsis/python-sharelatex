@@ -644,10 +644,10 @@ class SyncClient:
             current_csrf_token = get_csrf_Token(r.text)
             if (
                 kwargs is not None
-                and hasattr(kwargs, "keys")
-                and "params" in kwargs.keys()
-                and hasattr(kwargs["params"], "keys")
-                and "_csrf" in kwargs["params"].keys()
+                and hasattr(kwargs, "keys")  # noqa: W503
+                and "params" in kwargs.keys()  # noqa: W503
+                and hasattr(kwargs["params"], "keys")  # noqa: W503
+                and "_csrf" in kwargs["params"].keys()  # noqa: W503
             ):
                 kwargs["params"]["_csrf"] = current_csrf_token
             else:
