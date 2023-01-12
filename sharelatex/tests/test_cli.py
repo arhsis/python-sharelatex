@@ -125,6 +125,7 @@ def project(project_name, branch=None):
         password=password,
         authenticator=authenticator,
         verify=False,
+        force_update=True,
     )
     with TemporaryDirectory() as temp_path:
         old_dir = Path.cwd()
