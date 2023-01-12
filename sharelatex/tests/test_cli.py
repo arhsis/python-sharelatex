@@ -3,7 +3,7 @@ CLI tests.
 """
 from contextlib import contextmanager
 from logging import DEBUG, basicConfig
-from os import chdir, environ, path
+from os import chdir, environ, path as os_path
 from pathlib import Path
 from queue import Queue
 from shlex import quote
@@ -132,7 +132,7 @@ def project(project_name, branch=None):
         r = client.new(project_name)
         try:
             project_id = r["project_id"]
-            fs_path = path.join(temp_path, project_id)
+            fs_path = os_path.join(temp_path, project_id)
             project = Project(client, project_id, fs_path, username, password)
 
             # let's clone it
@@ -258,20 +258,20 @@ class TestCli(TestCase):
 
             # remove local document and file
             check_call("rm -rf test", shell=True)
-            self.assertFalse(path.exists("test/test.tex"))
+            self.assertFalse(os_path.exists("test/test.tex"))
             check_call("rm -rf test_bin", shell=True)
-            self.assertFalse(path.exists("test_bin/test.jpg"))
+            self.assertFalse(os_path.exists("test_bin/test.jpg"))
 
             # pull
             check_call("git slatex pull -vvv", shell=True)
 
             # check the document
-            self.assertTrue(path.exists("test/test.tex"))
+            self.assertTrue(os_path.exists("test/test.tex"))
             # check content (there's an extra \n...)
             self.assertEqual("test\n", open("test/test.tex").read())
 
             # check the file
-            self.assertTrue(path.exists("test_bin/test.jpg"))
+            self.assertTrue(os_path.exists("test_bin/test.jpg"))
             # TODO: check content of file
             from filecmp import cmp
 
@@ -307,7 +307,7 @@ class TestCli(TestCase):
             project.delete_object_by_path(path)
             check_call("git slatex pull -vvv", shell=True)
             # TODO: we could check the diff
-            self.assertFalse(path.exists(path))
+            self.assertFalse(os_path.exists(path))
 
         _test_clone_and_pull_remote_deletion(path="./universe.jpg")
         _test_clone_and_pull_remote_deletion(path="./references.bib")
@@ -342,7 +342,7 @@ class TestCli(TestCase):
             project.delete_folder_by_path(path)
             check_call("git slatex pull -vvv", shell=True)
             # TODO: we could check the diff
-            self.assertFalse(path.exists(path))
+            self.assertFalse(os_path.exists(path))
 
         _test_clone_and_pull_remote_folder_deletion(path="./test_dir")
 
