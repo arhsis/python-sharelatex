@@ -21,6 +21,8 @@ from socketIO_client import BaseNamespace, SocketIO
 
 from .__version__ import __version__
 
+_DEFAULT_LOGIN = "/login"
+
 logger = logging.getLogger(__name__)
 
 
@@ -240,7 +242,7 @@ class Authenticator:
         username: str = None,
         password: str = None,
         verify: bool = True,
-        login_path="/login",
+        login_path=_DEFAULT_LOGIN,
         sid_name="sharelatex.sid",
         username_tag: str = "email",
     ) -> Tuple[str, Dict]:
@@ -272,7 +274,7 @@ class DefaultAuthenticator(Authenticator):
         username: str = None,
         password: str = None,
         verify: bool = True,
-        login_path="/login",
+        login_path=_DEFAULT_LOGIN,
         sid_name="sharelatex.sid",
         username_tag: str = "email",
     ) -> Tuple[str, str]:
@@ -289,6 +291,8 @@ class DefaultAuthenticator(Authenticator):
             but e.g., login=...,password=...
             Thus, we have to pass this through.
         """
+        if login_path is None:
+            login_path = _DEFAULT_LOGIN
         self.login_url = urllib.parse.urljoin(base_url, login_path)
         self.username = username
         self.password = password
@@ -326,10 +330,12 @@ class LegacyAuthenticator(DefaultAuthenticator):
         username: str = None,
         password: str = None,
         verify: bool = True,
-        login_path="/login",
+        login_path=_DEFAULT_LOGIN,
         sid_name="sharelatex.sid",
         username_tag: str = "email",
     ) -> Tuple[str, str]:
+        if login_path is None:
+            login_path = _DEFAULT_LOGIN
         self.login_url = urllib.parse.urljoin(base_url, login_path)
         self.username = username
         self.password = password
@@ -392,6 +398,8 @@ class GitlabAuthenticator(DefaultAuthenticator):
         login_path="/auth/callback/gitlab",
         sid_name="sharelatex.sid",
     ):
+        if login_path is None:
+            login_path = "/auth/callback/gitlab"
         self.login_url = urllib.parse.urljoin(base_url, login_path)
         self.username = username
         self.password = password
@@ -628,7 +636,7 @@ class SyncClient:
         cookies = kwargs.get("cookies", {})
         cookies.update(self.cookie)
         kwargs["cookies"] = cookies
-        if verb == "POST":
+        if verb == "POST" and isinstance(self.authenticator, LegacyAuthenticator):
             # PS: The upload to sharelatex.tum.de only works with a fresh CSRF token.
             r = self.client.get(
                 urllib.parse.urljoin(self.base_url, self.login_path), verify=self.verify
