@@ -1,35 +1,45 @@
+"""
+CLI tests.
+"""
 from contextlib import contextmanager
-from git import Repo
-import logging
-import os
-from subprocess import check_call, check_output, CalledProcessError, STDOUT
-import tempfile
-import unittest
-import shlex
+from logging import DEBUG, basicConfig
+from os import chdir, environ, path
 from pathlib import Path
-import queue
+from queue import Queue
+from shlex import quote
+from subprocess import STDOUT, CalledProcessError, check_call, check_output
+from tempfile import TemporaryDirectory
+from unittest import TestCase
+from unittest import main as unittest_main
 
-from sharelatex import SyncClient, walk_project_data, get_authenticator_class
+from git import Repo
+
+from ddt import data, ddt, unpack
+from sharelatex import SyncClient, get_authenticator_class, walk_project_data
 from sharelatex.cli import MESSAGE_REPO_ISNT_CLEAN
 
-from ddt import ddt, data, unpack
+basicConfig(level=DEBUG)
 
 
-logging.basicConfig(level=logging.DEBUG)
+BASE_URL = environ.get("CI_BASE_URL")
+USERNAMES = environ.get("CI_USERNAMES")
+PASSWORDS = environ.get("CI_PASSWORDS")
+AUTH_TYPE = environ.get("CI_AUTH_TYPE")
 
-
-BASE_URL = os.environ.get("CI_BASE_URL")
-USERNAMES = os.environ.get("CI_USERNAMES")
-PASSWORDS = os.environ.get("CI_PASSWORDS")
-AUTH_TYPE = os.environ.get("CI_AUTH_TYPE")
-
+if BASE_URL is None or USERNAMES is None or PASSWORDS is None or AUTH_TYPE is None:
+    raise Exception(
+        "Please pass the base URL, the usernames, the passwords, and the "
+        "authentication types via the environment variables "
+        "`CI_BASE_URL`, `CI_USERNAMES`, `CI_PASSWORDS`, respectively "
+        "`CI_AUTH_TYPE`!"
+    )
 # Operate with a list of users
 # This workarounds the rate limitation on the API if enough usernames and
 # passwords are given Each test will pick the next (username, password) in the
 # queue and put it back at the end An alternative would be to define a smoke
 # user in the settings settings.smokeTest = True, settings.smokeTest.UserId
 
-CREDS = queue.Queue()
+CREDS = Queue()
 for username, password in zip(USERNAMES.split(","), PASSWORDS.split(",")):
     CREDS.put((username, password))
 
@@ -116,24 +126,24 @@ def project(project_name, branch=None):
         authenticator=authenticator,
         verify=False,
     )
-    with tempfile.TemporaryDirectory() as temp_path:
+    with TemporaryDirectory() as temp_path:
         old_dir = Path.cwd()
-        os.chdir(temp_path)
+        chdir(temp_path)
         r = client.new(project_name)
         try:
             project_id = r["project_id"]
-            fs_path = os.path.join(temp_path, project_id)
+            fs_path = path.join(temp_path, project_id)
             project = Project(client, project_id, fs_path, username, password)
 
             # let's clone it
             args = (
                 f"--auth_type={AUTH_TYPE} "
                 f"--username={username} "
-                f"--password={shlex.quote(password)} "
+                f"--password={quote(password)} "
                 f"--save-password --no-https-cert-check"
             )
             check_call(f"git slatex clone {project.url} {args}", shell=True)
-            os.chdir(project.fs_path)
+            chdir(project.fs_path)
             check_call("git config --local user.email 'test@test.com'", shell=True)
             check_call("git config --local user.name 'me'", shell=True)
             if branch is not None:
@@ -147,7 +157,7 @@ def project(project_name, branch=None):
         finally:
             # going back to the original directory prevent us to be
             # in a deleted directory in the future
-            os.chdir(old_dir)
+            chdir(old_dir)
             CREDS.put((username, password))
             client.delete(project_id, forever=True)
 
@@ -168,7 +178,7 @@ def new_project(branch=None):
 
 
 @ddt
-class TestCli(unittest.TestCase):
+class TestCli(TestCase):
     @new_project()
     def test_clone(self, project=None):
         pass
@@ -248,20 +258,20 @@ class TestCli(unittest.TestCase):
 
             # remove local document and file
             check_call("rm -rf test", shell=True)
-            self.assertFalse(os.path.exists("test/test.tex"))
+            self.assertFalse(path.exists("test/test.tex"))
             check_call("rm -rf test_bin", shell=True)
-            self.assertFalse(os.path.exists("test_bin/test.jpg"))
+            self.assertFalse(path.exists("test_bin/test.jpg"))
 
             # pull
             check_call("git slatex pull -vvv", shell=True)
 
             # check the document
-            self.assertTrue(os.path.exists("test/test.tex"))
+            self.assertTrue(path.exists("test/test.tex"))
             # check content (there's an extra \n...)
             self.assertEqual("test\n", open("test/test.tex").read())
 
             # check the file
-            self.assertTrue(os.path.exists("test_bin/test.jpg"))
+            self.assertTrue(path.exists("test_bin/test.jpg"))
             # TODO: check content of file
             from filecmp import cmp
 
@@ -297,7 +307,7 @@ class TestCli(unittest.TestCase):
             project.delete_object_by_path(path)
             check_call("git slatex pull -vvv", shell=True)
             # TODO: we could check the diff
-            self.assertFalse(os.path.exists(path))
+            self.assertFalse(path.exists(path))
 
         _test_clone_and_pull_remote_deletion(path="./universe.jpg")
         _test_clone_and_pull_remote_deletion(path="./references.bib")
@@ -332,7 +342,7 @@ class TestCli(unittest.TestCase):
             project.delete_folder_by_path(path)
             check_call("git slatex pull -vvv", shell=True)
             # TODO: we could check the diff
-            self.assertFalse(os.path.exists(path))
+            self.assertFalse(path.exists(path))
 
         _test_clone_and_pull_remote_folder_deletion(path="./test_dir")
 
@@ -381,7 +391,7 @@ class TestCli(unittest.TestCase):
             check_output(
                 f"git slatex new test_new {BASE_URL} "
                 f"--username {username} "
-                f"--password {shlex.quote(password)} "
+                f"--password {quote(password)} "
                 f"--auth_type {AUTH_TYPE}",
                 shell=True,
                 stderr=STDOUT,
@@ -401,13 +411,13 @@ class TestCli(unittest.TestCase):
         check_call(
             f"git slatex new test_new {BASE_URL} "
             f"--username {username} "
-            f"--password {shlex.quote(password)} "
+            f"--password {quote(password)} "
             f"--auth_type {AUTH_TYPE}",
             shell=True,
         )
 
 
-class TestLib(unittest.TestCase):
+class TestLib(TestCase):
     @new_project()
     def test_copy(self, project=None):
         client = project.client
@@ -423,4 +433,4 @@ class TestLib(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(verbosity=3)
+    unittest_main(verbosity=3)

@@ -1,10 +1,12 @@
+"""
+Unit tests.
+"""
 from contextlib import contextmanager
-import unittest
-from unittest.mock import patch, MagicMock
+from os import chdir, getcwd
 from pathlib import Path
-import os
-import tempfile
-
+from tempfile import TemporaryDirectory
+from unittest import TestCase, main
+from unittest.mock import MagicMock, patch
 
 from sharelatex.cli import _sync_deleted_items, _sync_remote_files
 
@@ -13,15 +15,15 @@ from sharelatex.cli import _sync_deleted_items, _sync_remote_files
 def into_tmpdir():
     """Run some code in the context of a tmp dir."""
 
-    old_cwd = os.getcwd()
-    with tempfile.TemporaryDirectory() as tmp_dir:
+    old_cwd = getcwd()
+    with TemporaryDirectory() as tmp_dir:
         try:
-            os.chdir(tmp_dir)
+            chdir(tmp_dir)
             yield tmp_dir
         except Exception as e:
             raise e
         finally:
-            os.chdir(old_cwd)
+            chdir(old_cwd)
 
 
 def tmpdir(f):
@@ -33,7 +35,7 @@ def tmpdir(f):
     return wrapped
 
 
-class TestPull(unittest.TestCase):
+class TestPull(TestCase):
     @patch.object(Path, "rmdir")
     @patch.object(Path, "unlink")
     def test_sync_delete_file_nomore_present_on_server(self, mock_unlink, mock_rmdir):
@@ -83,3 +85,7 @@ class TestPull(unittest.TestCase):
         client.get_file.assert_called_once()
         dest_path = working_path / "myimage.png"
         client.get_file.assert_called_with(project_id, "myimageId", dest_path=dest_path)
+
+
+if __name__ == "__main__":
+    main()
