@@ -1076,6 +1076,7 @@ def _push(
         save_password,
         login_path=login_path,
         username_tag=login_username_tag,
+        force_update=True,
     )
 
     if not force:
