@@ -17,12 +17,14 @@ prechecks:
   script:
   - pip install pre-commit
   - pre-commit run --all-files
+  timeout: "5min"
 
 pep8:
   tags: [ci.inria.fr, small]
   stage: test
   script:
   - tox -e pep8
+  timeout: "5min"
 
 docs:
   tags: [ci.inria.fr, small]
