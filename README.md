@@ -141,10 +141,14 @@ Options:
 #### Example
 
 ```shell
-mkdir test
-cd test
 # download all files of a remote project
-git slatex clone <project_URL> <local_path_to_project>
+git slatex clone \
+  --login-path /ldap/login \
+  --login-username-tag login \
+  --username YOUR_LRZ_USERNAME  `# i.e., geXXX` \
+  --password YOUR_LRZ_PASSWORD \
+  --auth_type legacy \
+  https://sharelatex.tum.de/project/YOUR_PROJECT_ID
 ```
 
 ### Editing and pushing back to slatex
@@ -211,7 +215,11 @@ Options:
 # commit, commit, commit ...
 #
 # Push back your change to sharelatex
-git slatex push
+git slatex push \
+  --login-path /ldap/login \
+  --login-username-tag login \
+  --username YOUR_LRZ_USERNAME  `# i.e., geXXX` \
+  --password YOUR_LRZ_PASSWORD
 ```
 
 Concurrent updates may occur between your local files (because you
@@ -278,10 +286,15 @@ Options:
 
 ```shell
 # Pull changes from sharelatex
-git slatex pull
+git slatex pull \
+  --login-path /ldap/login \
+  --login-username-tag login \
+  --username YOUR_LRZ_USERNAME  `# i.e., geXXX` \
+  --password YOUR_LRZ_PASSWORD
 ```
 
 ### Create a remote project from a local git
+
 ```shell
 git slatex new --help
 Usage: git-slatex new [OPTIONS] PROJECTNAME BASE_URL
