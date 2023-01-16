@@ -4,7 +4,7 @@ Python-sharelatex is a library to interact with <https://sharelatex.irisa.fr>.
 It also includes a command line tools to sync your remote project with git.
 This allows you to work offline on your project and later sync your local copy with the remote one.
 
-**Note: The <sharelatex.tum.de> only works with the branch `feature/sharelatextum`!**
+**Note: The <https://sharelatex.tum.de> only works with the branch `feature/sharelatextum`!**
 
 ## Links
 
