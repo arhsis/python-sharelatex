@@ -4,11 +4,12 @@ import pickle
 import re
 import threading
 import time
+import typing
 import urllib.parse
 import uuid
 import zipfile
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple, TypedDict
 
 import filetype
 import requests
@@ -23,7 +24,45 @@ from .__version__ import __version__
 logger = logging.getLogger(__name__)
 
 
-def set_logger(new_logger):
+class ProjectData(TypedDict):
+    """
+    Project data.
+    """
+
+    _id: str
+    rootFolder: str
+    name: str
+
+
+class UpdateMeta(TypedDict):
+    """
+    Update.
+    """
+
+    end_ts: int
+
+
+class Update(TypedDict):
+    """
+    Update.
+    """
+
+    docs: typing.Sequence[str]
+    meta: UpdateMeta
+
+
+class UpdateDatum(TypedDict):
+    """
+    Update datum.
+    """
+
+    updates: typing.Sequence[Update]
+
+
+def set_logger(new_logger: logging.Logger) -> None:
+    """
+    set logger.
+    """
     global logger
     logger = new_logger
 
@@ -33,17 +72,37 @@ USER_AGENT = f"python-sharelatex {__version__}"
 
 
 class SharelatexError(Exception):
-    """Base class for the errors here."""
+    """
+    Base class for the errors here.
+    """
 
     pass
 
 
 class CompilationError(SharelatexError):
-    def __init__(self, json_status):
+    """
+    CompilationError
+    """
+
+    def __init__(self, json_status: str):
         super().__init__("Compilation failed", json_status)
 
 
-def walk_project_data(project_data, predicate=lambda x: True):
+class FolderRep(TypedDict):
+    """
+    Folder
+    """
+
+    name: str
+    _id: str
+    fileRefs: typing.Sequence[str]
+    docs: typing.Sequence[str]
+    folders: typing.Sequence["FolderRep"]
+
+
+def walk_project_data(
+    project_data: ProjectData, predicate: Callable[[Any], bool] = lambda x: True
+):
     """Iterate on the project entities (folders, files).
 
     Args:
@@ -61,7 +120,7 @@ def walk_project_data(project_data, predicate=lambda x: True):
         A generator for the matching entities
     """
 
-    def _walk_project_data(current, parent):
+    def _walk_project_data(current: typing.Sequence[FolderRep], parent: str):
         """Iterate on the project structure
 
         Args:
@@ -103,7 +162,15 @@ def walk_project_data(project_data, predicate=lambda x: True):
     return _walk_project_data(project_data["rootFolder"], "")
 
 
-def lookup_folder(project_data, folder_path):
+class FolderData(TypedDict):
+    """
+    Folder.
+    """
+
+    folder_id: str
+
+
+def lookup_folder(project_data: ProjectData, folder_path: str) -> FolderData:
     """Lookup a folder by its path
 
     Args:
@@ -117,14 +184,14 @@ def lookup_folder(project_data, folder_path):
     Raises:
          StopIteration if the folder isn't found
     """
-    folder_path = Path(folder_path)
+    folder_path_as_path = Path(folder_path)
     folders = walk_project_data(
-        project_data, predicate=lambda x: Path(x["folder_path"]) == folder_path
+        project_data, predicate=lambda x: Path(x["folder_path"]) == folder_path_as_path
     )
     return next(folders)
 
 
-def walk_files(project_data):
+def walk_files(project_data: ProjectData) -> typing.Generator:
     """Iterates on the file only of a project.
 
     Args:
@@ -137,7 +204,7 @@ def walk_files(project_data):
     return walk_project_data(project_data, lambda x: x["type"] == "file")
 
 
-def walk_folders(project_data):
+def walk_folders(project_data: ProjectData) -> typing.Generator:
     """Iterates on the folders only of a project.
 
     Args:
@@ -150,8 +217,9 @@ def walk_folders(project_data):
     return walk_project_data(project_data, lambda x: x["type"] == "folder")
 
 
-def check_login_error(response):
-    """Check if there's an error in the request response
+def check_login_error(response: requests.Response) -> None:
+    """
+    Check if there's an error in the request response
 
     The response text is
     - HTML if the auth is successful
@@ -184,14 +252,7 @@ def check_login_error(response):
         pass
 
 
-def get_csrf_Token(html_text):
-    """Retrieve csrf token from a html text page from sharelatex server.
-
-    Args:
-        html_text (str): The text from a html page of sharelatex server
-    Returns:
-        the csrf token (str) if found in html_text or None if not
-    """
+def get_csrf_Token(html_text: str) -> typing.Optional[str]:
     """Retrieve csrf token from a html text page from sharelatex server.
 
     Args:
@@ -200,9 +261,9 @@ def get_csrf_Token(html_text):
         the csrf token (str) if found in html_text or None if not
     """
     if "csrfToken" in html_text:
-        csrfToken = re.search('(?<=csrfToken = ").{36}', html_text)
-        if csrfToken is not None:
-            return csrfToken.group(0)
+        csrf_token = re.search('(?<=csrfToken = ").{36}', html_text)
+        if csrf_token is not None:
+            return csrf_token.group(0)
         else:
             # check is overleaf token is here
             parsed = html.fromstring(html_text)
@@ -216,11 +277,25 @@ def get_csrf_Token(html_text):
 
 
 class Authenticator:
+    """
+    Authenticator
+    """
+
     def __init__(self, session: Optional[requests.session] = None):
+        self.login_url = None
+        self.username = None
+        self.password = None
+        self.sid_name = None
+        self.verify = None
+        self.csrf = None
+        self.login_data = None
         self._session: requests.session = session
 
     @property
     def session(self):
+        """
+        Session.
+        """
         if self._session is None:
             self._session = requests.session()
         return self._session
@@ -242,10 +317,14 @@ class Authenticator:
             Tuple of login data and the cookie (containing the session id)
             These two information can be used to forge further requests
         """
-        return None
+        raise NotImplementedError
 
 
 class DefaultAuthenticator(Authenticator):
+    """
+    Default authenticator.
+    """
+
     def __init__(
         self,
     ):
@@ -292,10 +371,18 @@ class DefaultAuthenticator(Authenticator):
 
 
 class CommunityAuthenticator(DefaultAuthenticator):
+    """
+    Community authenticator.
+    """
+
     pass
 
 
 class LegacyAuthenticator(DefaultAuthenticator):
+    """
+    Legacy authenticator
+    """
+
     def authenticate(
         self,
         base_url: str,
@@ -305,6 +392,9 @@ class LegacyAuthenticator(DefaultAuthenticator):
         login_path="/login",
         sid_name="sharelatex.sid",
     ) -> Tuple[str, str]:
+        """
+        Authenticate.
+        """
         self.login_url = urllib.parse.urljoin(base_url, login_path)
         self.username = username
         self.password = password
@@ -367,6 +457,9 @@ class GitlabAuthenticator(DefaultAuthenticator):
         login_path="/auth/callback/gitlab",
         sid_name="sharelatex.sid",
     ):
+        """
+        Authenticate.
+        """
         self.login_url = urllib.parse.urljoin(base_url, login_path)
         self.username = username
         self.password = password
@@ -438,7 +531,10 @@ AUTH_DICT = {
 }
 
 
-def get_authenticator_class(auth_type: str):
+def get_authenticator_class(auth_type: str) -> typing.Type[Authenticator]:
+    """
+    Return the authenticator.
+    """
     auth_type = auth_type.lower()
     try:
         return AUTH_DICT[auth_type]
@@ -446,16 +542,20 @@ def get_authenticator_class(auth_type: str):
         raise ValueError(f"auth_type must be in found {list(AUTH_DICT.keys())}")
 
 
-class SyncClient:
+class SyncClient(object):
+    """
+    Sync client
+    """
+
     def __init__(
         self,
         *,
-        base_url=BASE_URL,
-        username: str = None,
-        password: str = None,
-        verify: bool = True,
-        authenticator: Authenticator = None,
-    ):
+        base_url: str = BASE_URL,
+        username: typing.Optional[str] = None,
+        password: typing.Optional[str] = None,
+        verify: typing.Optional[bool] = True,
+        authenticator: typing.Optional[Authenticator] = None,
+    ) -> None:
         """Creates the client.
 
         This mimics the browser behaviour when logging in.
@@ -521,7 +621,7 @@ class SyncClient:
             with open(datafile, "wb") as f:
                 pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
-    def get_project_data(self, project_id):
+    def get_project_data(self, project_id: str) -> ProjectData:
         """Get the project hierarchy and some metadata.
 
         This mimics the browser behaviour when opening the project editor. This
@@ -538,20 +638,39 @@ class SyncClient:
         storage.is_data = False
 
         class Namespace(BaseNamespace):
+            """
+            Namespace.
+            """
+
             def on_connect(self):
+                """
+                On connect.
+                """
                 logger.debug("[Connected] Yeah !!")
 
             def on_reconnect(self):
+                """
+                On re.
+                """
                 logger.debug("[Reconnected] re-Yeah !!")
 
             def on_disconnect(self):
+                """
+                On dis.
+                """
                 logger.debug("[Disconnected]  snif!  ")
 
         def on_joint_project(*args):
+            """
+            on_joint_project
+            """
             storage.project_data = args[1]
             storage.is_data = True
 
         def on_connection_rejected(*args):
+            """
+            on_connection_rejected
+            """
             logger.debug("[connectionRejected]  oh !!!")
 
         headers = {"Referer": url}
@@ -565,6 +684,9 @@ class SyncClient:
         ) as socketIO:
 
             def on_connection_accepted(*args):
+                """
+                on_connection_accepted
+                """
                 logger.debug("[connectionAccepted]  Waoh !!!")
                 socketIO.emit(
                     "joinProject", {"project_id": project_id}, on_joint_project
@@ -580,7 +702,9 @@ class SyncClient:
         # this must be a valid dict (e.g., not None)
         return storage.project_data
 
-    def _request(self, verb, url, *args, **kwargs):
+    def _request(
+        self, verb: typing.Literal["POST", "GET", "DELETE"], url: str, *args, **kwargs
+    ) -> requests.Response:
         headers = kwargs.get("headers", {})
         headers.update(self.headers)
         kwargs["headers"] = headers
@@ -591,16 +715,16 @@ class SyncClient:
         r.raise_for_status()
         return r
 
-    def _get(self, url, *args, **kwargs):
+    def _get(self, url, *args, **kwargs) -> requests.Response:
         return self._request("GET", url, *args, **kwargs)
 
-    def _post(self, url, *args, **kwargs):
+    def _post(self, url, *args, **kwargs) -> requests.Response:
         return self._request("POST", url, *args, **kwargs)
 
-    def _delete(self, url, *args, **kwargs):
+    def _delete(self, url, *args, **kwargs) -> requests.Response:
         return self._request("DELETE", url, *args, **kwargs)
 
-    def get_project_update_data(self, project_id):
+    def get_project_update_data(self, project_id: str) -> UpdateDatum:
         """Get update (history) data of a project.
 
 
@@ -616,7 +740,9 @@ class SyncClient:
         r.raise_for_status()
         return r.json()
 
-    def download_project(self, project_id, *, path=".", keep_zip=False):
+    def download_project(
+        self, project_id: str, *, path: str = ".", keep_zip: bool = False
+    ) -> None:
         """Download and unzip the project.
 
         Beware that this will overwrite any existing project file under path.
@@ -645,7 +771,7 @@ class SyncClient:
         if not keep_zip:
             target_path.unlink()
 
-    def post_chat_message(self, project_id, message):
+    def post_chat_message(self, project_id: str, message: str) -> bool:
         """Post a message in chat channel of a project.
 
         Args:
@@ -663,7 +789,7 @@ class SyncClient:
         r.raise_for_status()
         return r.status_code == 204
 
-    def get_chats_messages(self, project_id):
+    def get_chats_messages(self, project_id: str) -> Any:
         """Get a list of messages in chat channel of a project.
 
         Args:
@@ -680,7 +806,9 @@ class SyncClient:
         r.raise_for_status()
         return r.json()
 
-    def get_document(self, project_id, doc_id, dest_path=None):
+    def get_document(
+        self, project_id: str, doc_id: str, dest_path: typing.Optional[str] = None
+    ) -> typing.Union[bool, str]:
         """Get a document from a project .
 
         This mimics the browser behavior when opening the project editor. This
@@ -704,16 +832,32 @@ class SyncClient:
         storage.is_data = False
 
         class Namespace(BaseNamespace):
+            """
+            Namespace.
+            """
+
             def on_connect(self):
+                """
+                on_connect.
+                """
                 logger.debug("[Connected] Yeah !!")
 
             def on_reconnect(self):
+                """
+                on_reconnect.
+                """
                 logger.debug("[Reconnected] re-Yeah !!")
 
             def on_disconnect(self):
+                """
+                on_disconnect.
+                """
                 logger.debug("[Disconnected]  snif!  ")
 
         def on_connection_rejected(*args):
+            """
+            on_connection_rejected.
+            """
             logger.debug("[connectionRejected]  oh !!!")
 
         headers = {"Referer": url}
@@ -727,6 +871,9 @@ class SyncClient:
         ) as socketIO:
 
             def on_joint_doc(*args):
+                """
+                on_joint_doc.
+                """
                 # transform list of str (lines) as bytes for finally decode as
                 # utf-8 list of str
                 storage.doc_data = [
@@ -735,10 +882,16 @@ class SyncClient:
                 storage.is_data = True
 
             def on_joint_project(*args):
+                """
+                on_joint_project.
+                """
                 storage.project_data = args[1]
                 socketIO.emit("joinDoc", doc_id, {"encodeRanges": True}, on_joint_doc)
 
             def on_connection_accepted(*args):
+                """
+                on_connection_accepted.
+                """
                 logger.debug("[connectionAccepted]  Waoh !!!")
                 socketIO.emit(
                     "joinProject", {"project_id": project_id}, on_joint_project
@@ -760,7 +913,9 @@ class SyncClient:
                 f.write("\n".join(storage.doc_data))
             return True
 
-    def get_file(self, project_id, file_id, dest_path=None):
+    def get_file(
+        self, project_id: str, file_id: str, dest_path: typing.Optional[str] = None
+    ) -> typing.Union[str, bool]:
         """Get an individual file (e.g image).
 
         Args:
@@ -781,7 +936,7 @@ class SyncClient:
         r.raise_for_status()
         # TODO(msimonin): return type
         if dest_path is None:
-            return r.content
+            return r.content.decode()
         else:
             dest_path = Path(dest_path)
             dest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -789,7 +944,7 @@ class SyncClient:
                 f.write(r.content)
             return True
 
-    def delete_file(self, project_id, file_id):
+    def delete_file(self, project_id: str, file_id: str) -> requests.Response:
         """Delete a single file (e.g image).
 
         Args:
@@ -808,7 +963,7 @@ class SyncClient:
         # TODO(msimonin): return type
         return r
 
-    def delete_document(self, project_id, doc_id):
+    def delete_document(self, project_id: str, doc_id: str) -> requests.Response:
         """Delete a single document (e.g tex file).
 
         Args:
@@ -828,7 +983,7 @@ class SyncClient:
 
         return r
 
-    def delete_folder(self, project_id, folder_id):
+    def delete_folder(self, project_id: str, folder_id: str) -> requests.Response:
         """Delete a single folder (with all data inside).
 
         Args:
@@ -848,7 +1003,9 @@ class SyncClient:
 
         return r
 
-    def upload_file(self, project_id, folder_id, path):
+    def upload_file(
+        self, project_id: str, folder_id: str, path: str
+    ) -> requests.Response:
         """Upload a file to sharelatex.
 
         Args:
@@ -883,7 +1040,7 @@ class SyncClient:
             raise Exception(f"Uploading {path} fails")
         return response
 
-    def create_folder(self, project_id, parent_folder, name):
+    def create_folder(self, project_id: str, parent_folder: str, name: str) -> Any:
         """Create a folder on sharelatex.
 
         Args:
@@ -911,7 +1068,7 @@ class SyncClient:
         response = r.json()
         return response
 
-    def check_or_create_folder(self, metadata, folder_path):
+    def check_or_create_folder(self, metadata: ProjectData, folder_path: str) -> str:
         """Check if a given folder exists on sharelatex side.
 
         Create it recursively if needed and return its id.
@@ -925,21 +1082,23 @@ class SyncClient:
         Returns:
             The folder id of the deepest folder created.
         """
-        folder_path = Path(folder_path)
+        folder_path_as_path = Path(folder_path)
         try:
             folder = lookup_folder(metadata, folder_path)
             return folder["folder_id"]
         except StopIteration:
             logger.debug(f"{folder_path} not found, creation planed")
 
-        parent_id = self.check_or_create_folder(metadata, os.path.dirname(folder_path))
+        parent_id = self.check_or_create_folder(
+            metadata, os.path.dirname(folder_path_as_path)
+        )
         new_folder = self.create_folder(
-            metadata["_id"], parent_id, os.path.basename(folder_path)
+            metadata["_id"], parent_id, os.path.basename(folder_path_as_path)
         )
         # This returns the id of the deepest folder
         return new_folder["_id"]
 
-    def upload(self, path):
+    def upload(self, path: str) -> Any:
         """Upload a project (zip) to sharelatex.
 
         Args:
@@ -968,7 +1127,7 @@ class SyncClient:
             raise Exception(f"Uploading {path} fails")
         return response
 
-    def share(self, project_id, email, can_edit=True):
+    def share(self, project_id: str, email: str, can_edit: bool = True) -> Any:
         """Send an invitation to share (edit/view) a project.
 
         Args:
@@ -994,7 +1153,7 @@ class SyncClient:
         response = r.json()
         return response
 
-    def compile(self, project_id):
+    def compile(self, project_id: str) -> Any:
         """Trigger a remote compilation.
 
         Note that this is run against the remote version not the local one.
@@ -1018,7 +1177,7 @@ class SyncClient:
             raise CompilationError(response)
         return response
 
-    def update_project_settings(self, project_id, **settings):
+    def update_project_settings(self, project_id: str, **settings) -> requests.Response:
         """Update the project settings.
 
         Update the project settings.
@@ -1047,7 +1206,7 @@ class SyncClient:
         r.raise_for_status()
         return r
 
-    def clone(self, project_id, project_name):
+    def clone(self, project_id: str, project_name: str) -> Any:
         """Copy a project.
 
         Args:
@@ -1068,7 +1227,7 @@ class SyncClient:
         response = r.json()
         return response
 
-    def new(self, project_name):
+    def new(self, project_name: str) -> Any:
         """Create a new example project for the current user.
 
         Args:
@@ -1086,7 +1245,7 @@ class SyncClient:
         response = r.json()
         return response
 
-    def delete(self, project_id, *, forever=False):
+    def delete(self, project_id: str, *, forever: bool = False) -> Any:
         """Delete a project for the current user.
 
         Args:
@@ -1098,3 +1257,4 @@ class SyncClient:
         r = self._delete(url, data=data, params=params, verify=self.verify)
         r.raise_for_status()
         return r
+
