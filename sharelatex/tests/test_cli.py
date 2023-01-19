@@ -3,7 +3,7 @@ import os
 import queue
 import shlex
 import tempfile
-import typing
+from typing import cast as typing_cast, Optional, Any, Callable, Generator
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
@@ -20,10 +20,10 @@ from sharelatex.cli import cli as cli_cli
 logging.basicConfig(level=logging.DEBUG)
 
 
-BASE_URL = typing.cast(str, os.environ.get("CI_BASE_URL"))
-USERNAMES = typing.cast(str, os.environ.get("CI_USERNAMES"))
-PASSWORDS = typing.cast(str, os.environ.get("CI_PASSWORDS"))
-AUTH_TYPE = typing.cast(str, os.environ.get("CI_AUTH_TYPE"))
+BASE_URL = typing_cast(str, os.environ.get("CI_BASE_URL"))
+USERNAMES = typing_cast(str, os.environ.get("CI_USERNAMES"))
+PASSWORDS = typing_cast(str, os.environ.get("CI_PASSWORDS"))
+AUTH_TYPE = typing_cast(str, os.environ.get("CI_AUTH_TYPE"))
 
 # Operate with a list of users
 # This workarounds the rate limitation on the API if enough usernames and
@@ -36,12 +36,12 @@ for username, password in zip(USERNAMES.split(","), PASSWORDS.split(",")):
     CREDS.put((username, password))
 
 
-def log(f: typing.Callable[[typing.Any], typing.Any]) -> typing.Any:
+def log(f: Callable[[Any], Any]) -> Any:
     """
     log
     """
 
-    def _wrapped(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+    def _wrapped(*args: Any, **kwargs: Any) -> Any:
         print("-" * 60)
         print(f"{f.__name__.upper():^60}")
         print("-" * 60)
@@ -62,22 +62,22 @@ class Project(object):
         fs_path: str,
         username: str,
         password: str,
-        repo: typing.Optional[Repo] = None,
+        repo: Optional[Repo] = None,
     ):
         self.client = client
         self.project_id = project_id
         self.fs_path = fs_path
-        self.repo: Repo = typing.cast(Repo, repo)
+        self.repo: Repo = typing_cast(Repo, repo)
         self.url = f"{BASE_URL}/project/{project_id}"
         # keep track of who created the project
         self.username = username
         self.password = password
 
-    def get_doc_by_path(self, path: str) -> str:
+    def get_doc_by_path(self, c_path: str) -> str:
         """Doc only."""
-        path_as_path = Path(path)
+        path_as_path = Path(c_path)
 
-        def _predicate(entity: typing.Any) -> bool:
+        def _predicate(entity: Any) -> bool:
             return (
                 Path(entity["folder_path"]) == path_as_path.parent
                 and entity["name"] == path_as_path.name
@@ -87,15 +87,15 @@ class Project(object):
         files = walk_project_data(project_data, predicate=_predicate)
         myfile = next(files)
         content = self.client.get_document(self.project_id, myfile["_id"])
-        return typing.cast(str, content)
+        return typing_cast(str, content)
 
-    def delete_object_by_path(self, path: str) -> None:
+    def delete_object_by_path(self, c_path: str) -> None:
         """
         File and  documents only
         """
-        path_as_path = Path(path)
+        path_as_path = Path(c_path)
 
-        def _predicate(entity: typing.Any) -> bool:
+        def _predicate(entity: Any) -> bool:
             return (
                 Path(entity["folder_path"]) == path_as_path.parent
                 and entity["name"] == path_as_path.name
@@ -109,10 +109,13 @@ class Project(object):
         if object["type"] == "file":
             self.client.delete_file(self.project_id, object["_id"])
 
-    def delete_folder_by_path(self, path: str) -> None:
-        path_as_path = Path(path)
+    def delete_folder_by_path(self, c_path: str) -> None:
+        """
+        Delete.
+        """
+        path_as_path = Path(c_path)
 
-        def _predicate(entity: typing.Any) -> bool:
+        def _predicate(entity: Any) -> bool:
             return Path(entity["folder_path"]) == path_as_path and entity["name"] == "."
 
         project_data = self.client.get_project_data(self.project_id)
@@ -122,7 +125,7 @@ class Project(object):
 
 
 @contextmanager
-def project(project_name: str, branch: typing.Optional[str] = None) -> typing.Generator:
+def project(project_name: str, branch: Optional[str] = None) -> Generator:
     """A convenient contextmanager to create a temporary project on sharelatex."""
 
     # First we create a client.
@@ -175,13 +178,13 @@ def project(project_name: str, branch: typing.Optional[str] = None) -> typing.Ge
 
 
 def new_project(
-    branch: typing.Optional[str] = None,
-) -> typing.Callable[[typing.Any], typing.Any]:
-    def _new_project(f: typing.Any) -> typing.Any:
+    branch: Optional[str] = None,
+) -> Callable[[Any], Any]:
+    def _new_project(f: Any) -> Any:
         """A convenient decorator to launch a function in the
         context of a new project."""
 
-        def wrapped(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+        def wrapped(*args: Any, **kwargs: Any) -> Any:
             with project(f.__name__, branch=branch) as p:  # type: ignore
                 kwargs.update(project=p)
                 return f(*args, **kwargs)
@@ -240,7 +243,7 @@ class TestCli(unittest.TestCase):
     )
     @unpack
     def test_clone_and_push_local_addition(
-        self, force: str, branch: typing.Optional[str]
+        self, force: str, branch: Optional[str]
     ) -> None:
         @new_project(branch=branch)
         def _test_clone_and_push_local_addition(
@@ -319,7 +322,7 @@ class TestCli(unittest.TestCase):
     )
     @unpack
     def test_clone_and_push_local_deletion(
-        self, force: str, branch: typing.Optional[str]
+        self, force: str, branch: Optional[str]
     ) -> None:
         @new_project(branch=branch)
         def _test_clone_and_push_local_deletion(
@@ -343,21 +346,21 @@ class TestCli(unittest.TestCase):
     )
     @unpack
     def test_clone_and_pull_remote_deletion(
-        self, force: str, branch: typing.Optional[str]
+        self, force: str, branch: Optional[str]
     ) -> None:
         @new_project(branch=branch)
         def _test_clone_and_pull_remote_deletion(
-            project: Project, path: str = "."
+            project: Project, c_path: str = "."
         ) -> None:
             """Deletion of remote path"""
-            project.delete_object_by_path(path)
+            project.delete_object_by_path(c_path)
             result = self._RUNNER.invoke(cli_cli, ["pull", "-vvv"])
             self.assertEqual(result.exit_code, 0)
             # TODO: we could check the diff
-            self.assertFalse(os.path.exists(path))
+            self.assertFalse(os.path.exists(c_path))
 
-        _test_clone_and_pull_remote_deletion(path="./universe.jpg")
-        _test_clone_and_pull_remote_deletion(path="./references.bib")
+        _test_clone_and_pull_remote_deletion(c_path="./universe.jpg")
+        _test_clone_and_pull_remote_deletion(c_path="./references.bib")
 
     @data(
         [
@@ -367,13 +370,13 @@ class TestCli(unittest.TestCase):
     )
     @unpack
     def test_clone_and_pull_remote_folder_deletion(
-        self, force: str, branch: typing.Optional[str]
+        self, force: str, branch: Optional[str]
     ) -> None:
         @new_project(branch=branch)
         def _test_clone_and_pull_remote_folder_deletion(
-            project: Project, path: str = "."
+            project: Project, c_path: str = "."
         ) -> None:
-            path_as_path = Path(path)
+            path_as_path = Path(c_path)
             file_test_path = path_as_path.joinpath("test.tex")
             """Addition of a remote file."""
             check_call(f"mkdir -p {path_as_path}", shell=True)
