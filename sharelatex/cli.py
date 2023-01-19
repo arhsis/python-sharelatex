@@ -5,10 +5,20 @@ import os
 import sys
 import tempfile
 import time
-import typing
 from functools import wraps
 from pathlib import Path
-from typing import TypedDict, Union
+from typing import (
+    AbstractSet,
+    Any,
+    Callable,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 from zipfile import ZipFile
 
 import click
@@ -27,6 +37,11 @@ from sharelatex import (
     walk_folders,
     walk_project_data,
 )
+
+try:
+    from typing import TypedDict
+except ImportError:
+    from typing_extensions import TypedDict  # type: ignore
 
 URL_MALFORMED_ERROR_MESSAGE = "projet_url is not well formed or missing"
 
@@ -99,7 +114,7 @@ COMMIT_MESSAGE_PUSH: str = _commit_message("push")
 COMMIT_MESSAGE_CLONE: str = _commit_message("clone")
 COMMIT_MESSAGE_PREPULL: str = _commit_message("pre pull")
 COMMIT_MESSAGE_UPLOAD: str = _commit_message("upload")
-COMMIT_MESSAGES: typing.AbstractSet[str] = frozenset(
+COMMIT_MESSAGES: AbstractSet[str] = frozenset(
     [
         COMMIT_MESSAGE_PUSH,
         COMMIT_MESSAGE_CLONE,
@@ -157,13 +172,11 @@ class Config:
         self.repo = repo
         self.keyring = keyring.get_keyring()
 
-    def get_password(self, service: str, username: str) -> typing.Optional[str]:
+    def get_password(self, service: str, username: str) -> Optional[str]:
         """
         get_password
         """
-        return typing.cast(
-            typing.Optional[str], self.keyring.get_password(service, username)
-        )
+        return cast(Optional[str], self.keyring.get_password(service, username))
 
     def set_password(self, service: str, username: str, password: str) -> None:
         """
@@ -210,8 +223,8 @@ class Config:
         self,
         section: str,
         key: str,
-        default: typing.Optional[str] = None,
-        config_level: typing.Optional[str] = None,
+        default: Optional[str] = None,
+        config_level: Optional[str] = None,
     ) -> Union[int, str, float]:
         """Get a config value in a specific section of the config.
 
@@ -242,7 +255,7 @@ class Config:
                 return value  # type: ignore
 
 
-def get_clean_repo(path: typing.Optional[Path] = None) -> Repo:
+def get_clean_repo(path: Optional[Path] = None) -> Repo:
     """Create the git.repo object from a directory.
 
     Note:
@@ -270,10 +283,10 @@ def get_clean_repo(path: typing.Optional[Path] = None) -> Repo:
 
 def refresh_project_information(
     repo: Repo,
-    base_url: typing.Optional[str] = None,
-    project_id: typing.Optional[str] = None,
-    https_cert_check: typing.Optional[bool] = None,
-) -> typing.Tuple[str, str, bool]:
+    base_url: Optional[str] = None,
+    project_id: Optional[str] = None,
+    https_cert_check: Optional[bool] = None,
+) -> Tuple[str, str, bool]:
     """Get and/or set the project information in/from the git config.
 
     If the information is set in the config it is retrieved, otherwise it is set.
@@ -290,7 +303,7 @@ def refresh_project_information(
     if base_url is None:
         u = config.get_value(SLATEX_SECTION, "baseUrl")
         if u is not None:
-            base_url = typing.cast(str, u)
+            base_url = cast(str, u)
         else:
             base_url = input(PROMPT_BASE_URL)
             config.set_value(SLATEX_SECTION, "baseUrl", base_url)
@@ -299,14 +312,14 @@ def refresh_project_information(
     if project_id is None:
         p = config.get_value(SLATEX_SECTION, "projectId")
         if p is not None:
-            project_id = typing.cast(str, p)
+            project_id = cast(str, p)
         else:
             project_id = input(PROMPT_PROJECT_ID)
         config.set_value(SLATEX_SECTION, "projectId", project_id)
     else:
         config.set_value(SLATEX_SECTION, "projectId", project_id)
     if https_cert_check is None:
-        c = typing.cast(bool, config.get_value(SLATEX_SECTION, "httpsCertCheck"))
+        c = cast(bool, config.get_value(SLATEX_SECTION, "httpsCertCheck"))
         if c is not None:
             https_cert_check = c
         else:
@@ -325,11 +338,11 @@ def refresh_project_information(
 def refresh_account_information(
     repo: Repo,
     auth_type: str,
-    username: typing.Optional[str] = None,
-    password: typing.Optional[str] = None,
-    save_password: typing.Optional[bool] = None,
-    ignore_saved_user_info: typing.Optional[bool] = False,
-) -> typing.Tuple[str, str, str]:
+    username: Optional[str] = None,
+    password: Optional[str] = None,
+    save_password: Optional[bool] = None,
+    ignore_saved_user_info: Optional[bool] = False,
+) -> Tuple[str, str, str]:
     """Get and/or set the account information in/from the git config.
 
     If the information is set in the config it is retrieved, otherwise it is set.
@@ -362,7 +375,7 @@ def refresh_account_information(
 
     if username is None:
         if not ignore_saved_user_info:
-            u = typing.cast(str, config.get_value(SLATEX_SECTION, "username"))
+            u = cast(str, config.get_value(SLATEX_SECTION, "username"))
             if u:
                 username = u
     if username is None:
@@ -392,7 +405,7 @@ def getClient(
     username: str,
     password: str,
     verify: bool,
-    save_password: typing.Optional[bool] = None,
+    save_password: Optional[bool] = None,
 ) -> SyncClient:
     logger.info(f"try to open session on {base_url} with {username}")
     client = None
@@ -436,19 +449,19 @@ def update_ref(repo: Repo, message: str = "update_ref") -> None:
     sync_branch.commit = "HEAD"
 
 
-def handle_exception(*exceptions: typing.Type[SharelatexError]) -> typing.Callable:
+def handle_exception(*exceptions: Type[SharelatexError]) -> Callable:
     """Decorator to handle the cli exceptions.
 
     Decorated
     """
 
-    def wrapper(f: typing.Any) -> typing.Callable:
+    def wrapper(f: Any) -> Callable:
         """
         Wrapper.
         """
 
         @wraps(f)
-        def inner(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+        def inner(*args: Any, **kwargs: Any) -> Any:
             """
             inner.
             """
@@ -469,7 +482,7 @@ def cli() -> None:
     pass
 
 
-def log_options(function: typing.Callable) -> typing.Callable:
+def log_options(function: Callable) -> Callable:
     """
     The log options.
     """
@@ -485,7 +498,7 @@ def log_options(function: typing.Callable) -> typing.Callable:
     return function
 
 
-def authentication_options(function: typing.Callable) -> typing.Callable:
+def authentication_options(function: Callable) -> Callable:
     """
     authentication_options
     """
@@ -538,8 +551,8 @@ def test(verbose: int) -> None:
 
 def _sync_deleted_items(
     working_path: Path,
-    remote_items: typing.Sequence[RemoteItem],
-    objects: typing.Sequence[Path],
+    remote_items: Sequence[RemoteItem],
+    objects: Sequence[Path],
 ) -> None:
     remote_path = [Path(fd["folder_path"]).joinpath(fd["name"]) for fd in remote_items]
     for blob_path in objects:
@@ -554,8 +567,8 @@ def _sync_deleted_items(
 
 
 def _get_datetime_from_git(
-    repo: Repo, branch: str, files: typing.Sequence[Path], working_path: Path
-) -> typing.Mapping[str, datetime.datetime]:
+    repo: Repo, branch: str, files: Sequence[Path], working_path: Path
+) -> Mapping[str, datetime.datetime]:
     datetimes_dict = {}
     for p in files:
         commits = repo.iter_commits(branch)
@@ -578,8 +591,8 @@ def _sync_remote_files(
     client: SyncClient,
     project_id: str,
     working_path: Path,
-    remote_items: typing.Sequence[RemoteItem],
-    datetimes_dict: typing.Mapping[str, datetime.datetime],
+    remote_items: Sequence[RemoteItem],
+    datetimes_dict: Mapping[str, datetime.datetime],
 ) -> None:
     remote_files = (item for item in remote_items if item["type"] == "file")
     # TODO: build the list of file to download and then write them in a second step
@@ -620,9 +633,9 @@ def _sync_remote_docs(
     client: SyncClient,
     project_id: str,
     working_path: Path,
-    remote_items: typing.Sequence[RemoteItem],
+    remote_items: Sequence[RemoteItem],
     update_data: UpdateDatum,
-    datetimes_dict: typing.Mapping[str, datetime.datetime],
+    datetimes_dict: Mapping[str, datetime.datetime],
 ) -> None:
     remote_docs = (item for item in remote_items if item["type"] == "doc")
     logger.debug("check if remote documents are newer that locals")
@@ -765,9 +778,9 @@ def _pull(repo: Repo, client: SyncClient, project_id: str) -> None:
 def compile(
     project_id: str,
     auth_type: str,
-    username: typing.Optional[str],
-    password: typing.Optional[str],
-    save_password: typing.Optional[bool],
+    username: Optional[str],
+    password: Optional[str],
+    save_password: Optional[bool],
     ignore_saved_user_info: bool,
     verbose: int,
 ) -> None:
@@ -809,9 +822,9 @@ def share(
     email: str,
     can_edit: bool,
     auth_type: str,
-    username: typing.Optional[str],
-    password: typing.Optional[str],
-    save_password: typing.Optional[bool],
+    username: Optional[str],
+    password: Optional[str],
+    save_password: Optional[bool],
     ignore_saved_user_info: bool,
     verbose: int,
 ) -> None:
@@ -846,9 +859,9 @@ def share(
 @handle_exception(RepoNotCleanError)
 def pull(
     auth_type: str,
-    username: typing.Optional[str],
-    password: typing.Optional[str],
-    save_password: typing.Optional[bool],
+    username: Optional[str],
+    password: Optional[str],
+    save_password: Optional[bool],
     ignore_saved_user_info: bool,
     verbose: int,
 ) -> None:
@@ -903,9 +916,9 @@ def clone(
     projet_url: str,
     directory: str,
     auth_type: str,
-    username: typing.Optional[str],
-    password: typing.Optional[str],
-    save_password: typing.Optional[bool],
+    username: Optional[str],
+    password: Optional[str],
+    save_password: Optional[bool],
     ignore_saved_user_info: bool,
     https_cert_check: bool,
     whole_project_download: bool,
@@ -988,9 +1001,9 @@ def _upload(
 def _push(
     force: bool,
     auth_type: str,
-    username: typing.Optional[str],
-    password: typing.Optional[str],
-    save_password: typing.Optional[bool],
+    username: Optional[str],
+    password: Optional[str],
+    save_password: Optional[bool],
     ignore_saved_user_info: bool,
     verbose: int,
 ) -> None:
@@ -1088,9 +1101,9 @@ def _push(
 def push(
     force: bool,
     auth_type: str,
-    username: typing.Optional[str],
-    password: typing.Optional[str],
-    save_password: typing.Optional[bool],
+    username: Optional[str],
+    password: Optional[str],
+    save_password: Optional[bool],
     ignore_saved_user_info: bool,
     verbose: int,
 ) -> None:
@@ -1146,9 +1159,9 @@ def new(
     whole_project_upload: bool,
     rate_max_uploads_by_sec: float,
     auth_type: str,
-    username: typing.Optional[str],
-    password: typing.Optional[str],
-    save_password: typing.Optional[bool],
+    username: Optional[str],
+    password: Optional[str],
+    save_password: Optional[bool],
     ignore_saved_user_info: bool,
     verbose: int,
 ) -> None:

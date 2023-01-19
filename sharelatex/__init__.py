@@ -4,12 +4,22 @@ import pickle
 import re
 import threading
 import time
-import typing
 import urllib.parse
 import uuid
 import zipfile
 from pathlib import Path
-from typing import Any, Callable, Optional, Tuple, TypedDict
+from typing import (
+    Any,
+    Callable,
+    Generator,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+)
+from typing import cast as typing_cast
 
 import filetype
 import requests
@@ -20,6 +30,11 @@ from lxml import html
 from socketIO_client import BaseNamespace, SocketIO
 
 from .__version__ import __version__
+
+try:
+    from typing import Literal, TypedDict
+except ImportError:
+    from typing_extensions import Literal, TypedDict  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +62,7 @@ class Update(TypedDict):
     Update.
     """
 
-    docs: typing.Sequence[str]
+    docs: Sequence[str]
     meta: UpdateMeta
 
 
@@ -56,7 +71,7 @@ class UpdateDatum(TypedDict):
     Update datum.
     """
 
-    updates: typing.Sequence[Update]
+    updates: Sequence[Update]
 
 
 def set_logger(new_logger: logging.Logger) -> None:
@@ -95,9 +110,9 @@ class FolderRep(TypedDict):
 
     name: str
     _id: str
-    fileRefs: typing.Sequence[str]
-    docs: typing.Sequence[str]
-    folders: typing.Sequence["FolderRep"]
+    fileRefs: Sequence[str]
+    docs: Sequence[str]
+    folders: Sequence["FolderRep"]
 
 
 def walk_project_data(
@@ -120,7 +135,7 @@ def walk_project_data(
         A generator for the matching entities
     """
 
-    def _walk_project_data(current: typing.Sequence[FolderRep], parent: str) -> Any:
+    def _walk_project_data(current: Sequence[FolderRep], parent: str) -> Any:
         """Iterate on the project structure
 
         Args:
@@ -191,7 +206,7 @@ def lookup_folder(project_data: ProjectData, folder_path: str) -> FolderData:
     return next(folders)  # type: ignore
 
 
-def walk_files(project_data: ProjectData) -> typing.Generator:
+def walk_files(project_data: ProjectData) -> Generator:
     """Iterates on the file only of a project.
 
     Args:
@@ -206,7 +221,7 @@ def walk_files(project_data: ProjectData) -> typing.Generator:
     )  # type: ignore
 
 
-def walk_folders(project_data: ProjectData) -> typing.Generator:
+def walk_folders(project_data: ProjectData) -> Generator:
     """Iterates on the folders only of a project.
 
     Args:
@@ -273,7 +288,7 @@ def get_csrf_Token(html_text: str) -> str:
             parsed = html.fromstring(html_text)
             meta = parsed.xpath("//meta[@name='ol-csrfToken']")
             if meta:
-                return typing.cast(str, meta[0].get("content"))
+                return typing_cast(str, meta[0].get("content"))
     raise Exception(f"We could not find the CSRF in {html_text}")
 
 
@@ -289,8 +304,8 @@ class Authenticator:
         self.sid_name: str = ""
         self.verify: bool = True
         self.csrf: str = ""
-        self.login_data: typing.Mapping[str, Any] = {}
-        self._session: requests.Session = typing.cast(requests.Session, session)
+        self.login_data: Mapping[str, Any] = {}
+        self._session: requests.Session = typing_cast(requests.Session, session)
 
     @property
     def session(self) -> requests.Session:
@@ -313,7 +328,7 @@ class Authenticator:
         verify: bool = True,
         login_path: str = "/login",
         sid_name: str = "sharelatex.sid",
-    ) -> Tuple[typing.Mapping[str, Any], typing.Mapping[str, Any]]:
+    ) -> Tuple[Mapping[str, Any], Mapping[str, Any]]:
         """Authenticate.
 
         Returns:
@@ -350,7 +365,7 @@ class DefaultAuthenticator(Authenticator):
         verify: bool = True,
         login_path: str = "/login",
         sid_name: str = "sharelatex.sid",
-    ) -> Tuple[typing.Mapping[str, Any], typing.Mapping[str, Any]]:
+    ) -> Tuple[Mapping[str, Any], Mapping[str, Any]]:
         self.login_url = urllib.parse.urljoin(base_url, login_path)
         self.username = username
         self.password = password
@@ -394,7 +409,7 @@ class LegacyAuthenticator(DefaultAuthenticator):
         verify: bool = True,
         login_path: str = "/login",
         sid_name: str = "sharelatex.sid",
-    ) -> Tuple[typing.Mapping[str, Any], typing.Mapping[str, Any]]:
+    ) -> Tuple[Mapping[str, Any], Mapping[str, Any]]:
         """
         Authenticate.
         """
@@ -437,14 +452,10 @@ class GitlabAuthenticator(DefaultAuthenticator):
     def __init__(self) -> None:
         super().__init__()
 
-    def _login_data_ldap(
-        self, username: str, password: str
-    ) -> typing.Mapping[str, str]:
+    def _login_data_ldap(self, username: str, password: str) -> Mapping[str, str]:
         return {"username": username, "password": password}
 
-    def _login_data_local(
-        self, username: str, password: str
-    ) -> typing.Mapping[str, str]:
+    def _login_data_local(self, username: str, password: str) -> Mapping[str, str]:
         return {"user[login]": username, "user[password]": password}
 
     def _get_login_forms(self) -> Any:
@@ -463,7 +474,7 @@ class GitlabAuthenticator(DefaultAuthenticator):
         verify: bool = True,
         login_path: str = "/auth/callback/gitlab",
         sid_name: str = "sharelatex.sid",
-    ) -> Tuple[typing.Mapping[str, Any], typing.Mapping[str, Any]]:
+    ) -> Tuple[Mapping[str, Any], Mapping[str, Any]]:
         """
         Authenticate.
         """
@@ -496,8 +507,8 @@ class GitlabAuthenticator(DefaultAuthenticator):
         self,
         url: str,
         html_form: Any,  # parsed html
-        login_data_fnc: Callable[[str, str], typing.Mapping[str, str]],
-    ) -> Tuple[typing.Mapping[str, Any], typing.Mapping[str, Any]]:
+        login_data_fnc: Callable[[str, str], Mapping[str, str]],
+    ) -> Tuple[Mapping[str, Any], Mapping[str, Any]]:
 
         if not any(
             field in html_form.fields.keys()
@@ -538,7 +549,7 @@ AUTH_DICT = {
 }
 
 
-def get_authenticator_class(auth_type: str) -> typing.Type[Authenticator]:
+def get_authenticator_class(auth_type: str) -> Type[Authenticator]:
     """
     Return the authenticator.
     """
@@ -561,7 +572,7 @@ class SyncClient:
         username: str = "",
         password: str = "",
         verify: bool = True,
-        authenticator: typing.Optional[Authenticator] = None,
+        authenticator: Optional[Authenticator] = None,
     ) -> None:
         """Creates the client.
 
@@ -707,11 +718,11 @@ class SyncClient:
             logger.debug("[socketIO] wait for project data finish !")
         # NOTE(msimonin): Check return type
         # this must be a valid dict (e.g., not None)
-        return typing.cast(ProjectData, storage.project_data)
+        return typing_cast(ProjectData, storage.project_data)
 
     def _request(
         self,
-        verb: typing.Literal["POST", "GET", "DELETE"],
+        verb: Literal["POST", "GET", "DELETE"],
         url: str,
         *args: Any,
         **kwargs: Any,
@@ -749,7 +760,7 @@ class SyncClient:
         logger.info(f"Downloading update data for {project_id}")
         r = self._get(url)
         r.raise_for_status()
-        return typing.cast(UpdateDatum, r.json())
+        return typing_cast(UpdateDatum, r.json())
 
     def download_project(
         self, project_id: str, *, path: str = ".", keep_zip: bool = False
@@ -818,8 +829,8 @@ class SyncClient:
         return r.json()
 
     def get_document(
-        self, project_id: str, doc_id: str, dest_path: typing.Optional[str] = None
-    ) -> typing.Union[bool, str]:
+        self, project_id: str, doc_id: str, dest_path: Optional[str] = None
+    ) -> Union[bool, str]:
         """Get a document from a project .
 
         This mimics the browser behavior when opening the project editor. This
@@ -925,8 +936,8 @@ class SyncClient:
             return True
 
     def get_file(
-        self, project_id: str, file_id: str, dest_path: typing.Optional[str] = None
-    ) -> typing.Union[str, bool]:
+        self, project_id: str, file_id: str, dest_path: Optional[str] = None
+    ) -> Union[str, bool]:
         """Get an individual file (e.g image).
 
         Args:
@@ -1105,7 +1116,7 @@ class SyncClient:
             metadata["_id"], parent_id, os.path.basename(folder_path_as_path)
         )
         # This returns the id of the deepest folder
-        return typing.cast(str, new_folder["_id"])
+        return typing_cast(str, new_folder["_id"])
 
     def upload(self, path: str) -> Any:
         """Upload a project (zip) to sharelatex.

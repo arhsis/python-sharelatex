@@ -2,9 +2,8 @@ import codecs
 import datetime
 import os
 import shutil
-import typing
 import zipfile
-from typing import Mapping
+from typing import Any, Mapping, Sequence
 
 import pymongo
 from bson.objectid import ObjectId
@@ -29,7 +28,7 @@ DB = client["sharelatex"]
 
 
 def _writeProjectFiles(
-    project: typing.Mapping[str, typing.Any],
+    project: Mapping[str, Any],
     destination_path: str = "/tmp/",
     user_file_path: str = "/var/lib/sharelatex/data/user_files",
 ) -> None:
@@ -37,9 +36,7 @@ def _writeProjectFiles(
     projectPath = os.path.join(destination_path, project["name"])
     project_id = project["_id"]
 
-    def _writeFolders(
-        folders: typing.Sequence[typing.Mapping[str, typing.Any]], currentPath: str
-    ) -> None:
+    def _writeFolders(folders: Sequence[Mapping[str, Any]], currentPath: str) -> None:
         for folder in folders:
             newPath = os.path.join(currentPath, folder["name"])
             if not os.path.exists(newPath):
@@ -145,7 +142,7 @@ def get_active_projects(days: int = 7) -> Mapping[str, datetime.datetime]:
     return _get_projects_before_after(days, selector="$gt")
 
 
-def get_project_collaborators(project_id: str) -> typing.Any:
+def get_project_collaborators(project_id: str) -> Any:
     """return a dict containing in keys the ids of the collaborators for
     the project of project_id id, and in values their mail adress"""
     project = DB["projects"].find({"_id": ObjectId(project_id)})
@@ -169,7 +166,7 @@ def getUserIdByEmail(address: str) -> ObjectId:
         return None
 
 
-def changeMailAddress(old_address: str, new_address: str) -> typing.Any:
+def changeMailAddress(old_address: str, new_address: str) -> Any:
     if DB.users.find_one({"email": old_address}):
         # new_address mustn't already be in DB
         if DB.users.find_one({"email": new_address}):
@@ -181,7 +178,7 @@ def changeMailAddress(old_address: str, new_address: str) -> typing.Any:
         raise NameError("OldAddressNotInDB")
 
 
-def changeProjectOwner(project_id: str, new_onwer_id: str) -> typing.Any:
+def changeProjectOwner(project_id: str, new_onwer_id: str) -> Any:
     project = DB["projects"].find_one({"_id": ObjectId(project_id)})
     if project:
         user = DB.users.find_one({"_id": ObjectId(new_onwer_id)})
