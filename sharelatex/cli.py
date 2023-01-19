@@ -434,7 +434,9 @@ def getClient(
     return client
 
 
-def update_ref(repo: Repo, message="update_ref", git_branch: str = SYNC_BRANCH) -> None:
+def update_ref(
+    repo: Repo, message: str = "update_ref", git_branch: str = SYNC_BRANCH
+) -> None:
     """Makes the remote pointer to point on the latest revision we have.
 
     This is called after a successful clone, push, new. In short when we

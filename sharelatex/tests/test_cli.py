@@ -199,7 +199,9 @@ def new_project(
         context of a new project."""
 
         def wrapped(*args: Any, **kwargs: Any) -> Any:
-            with project(f.__name__, branch=branch, sharelatex_git_branch=sharelatex_git_branch) as p:  # type: ignore
+            with project(
+                f.__name__, branch=branch, sharelatex_git_branch=sharelatex_git_branch
+            ) as p:  # type: ignore
 
                 kwargs.update(project=p)
                 return f(*args, **kwargs)
@@ -222,7 +224,7 @@ class TestCli(unittest.TestCase):
         pass
 
     @new_project(branch="main", sharelatex_git_branch="test-development")
-    def test_clone_other_branch_name(self, project=None):
+    def test_clone_other_branch_name(self, project: Project) -> None:
         branch_names = frozenset(b.name for b in project.repo.branches)
         self.assertIn("test-development", branch_names)
         self.assertIn("main", branch_names)
