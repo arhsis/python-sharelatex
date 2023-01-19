@@ -1,13 +1,12 @@
 import inspect
 import os
 import time
+import typing
 
 from locust import User, events, task
 
 # inspired from https://github.com/gtato/sharelatex-loadgenerator
-from sharelatex import SyncClient, GitlabAuthenticator
-
-import typing
+from sharelatex import GitlabAuthenticator, SyncClient
 
 BASE_URL = typing.cast(str, os.environ.get("CI_BASE_URL"))
 USERNAME = typing.cast(str, os.environ.get("CI_USERNAME"))

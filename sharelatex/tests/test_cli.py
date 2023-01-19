@@ -3,11 +3,12 @@ import os
 import queue
 import shlex
 import tempfile
-from typing import cast as typing_cast, Optional, Any, Callable, Generator
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
 from subprocess import check_call
+from typing import Any, Callable, Generator, Optional
+from typing import cast as typing_cast
 
 from click.testing import CliRunner
 from ddt import data, ddt, unpack
@@ -50,7 +51,7 @@ def log(f: Callable[[Any], Any]) -> Any:
     return _wrapped
 
 
-class Project(object):
+class Project:
     """
     Project
     """

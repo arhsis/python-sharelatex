@@ -1,10 +1,11 @@
 import datetime
 import os
 import tempfile
-from typing import cast as typing_cast, Mapping, Sequence, Any, Generator
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any, Generator, Mapping, Sequence
+from typing import cast as typing_cast
 from unittest.mock import MagicMock, patch
 
 from sharelatex.cli import RemoteItem, _sync_deleted_items, _sync_remote_files

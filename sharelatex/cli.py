@@ -8,9 +8,9 @@ import time
 import typing
 from functools import wraps
 from pathlib import Path
-from typing import Union
+from typing import TypedDict, Union
 from zipfile import ZipFile
-from typing import TypedDict
+
 import click
 import dateutil.parser
 import keyring

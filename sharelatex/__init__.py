@@ -545,7 +545,7 @@ def get_authenticator_class(auth_type: str) -> typing.Type[Authenticator]:
         raise ValueError(f"auth_type must be in found {list(AUTH_DICT.keys())}")
 
 
-class SyncClient(object):
+class SyncClient:
     """
     Sync client
     """
