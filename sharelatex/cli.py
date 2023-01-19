@@ -434,7 +434,7 @@ def getClient(
     return client
 
 
-def update_ref(repo: Repo, message: str = "update_ref") -> None:
+def update_ref(repo: Repo, message="update_ref", git_branch: str = SYNC_BRANCH) -> None:
     """Makes the remote pointer to point on the latest revision we have.
 
     This is called after a successful clone, push, new. In short when we
@@ -445,7 +445,7 @@ def update_ref(repo: Repo, message: str = "update_ref") -> None:
     git.add(".")
     # with this we can have two consecutive commit with the same content
     repo.index.commit(f"{message}")
-    sync_branch = repo.create_head(SYNC_BRANCH, force=True)
+    sync_branch = repo.create_head(git_branch, force=True)
     sync_branch.commit = "HEAD"
 
 
@@ -480,6 +480,15 @@ def handle_exception(*exceptions: Type[SharelatexError]) -> Callable:
 @click.group()
 def cli() -> None:
     pass
+
+
+_GIT_BRANCH_OPTION = click.option(
+    "--git-branch",
+    "-b",
+    default=SYNC_BRANCH,
+    help=f"The name of a branch. We will commit the changes from Sharelatex "
+    f"on this branch.\n\n Default: {SYNC_BRANCH}",
+)
 
 
 def log_options(function: Callable) -> Callable:
@@ -606,9 +615,9 @@ def _sync_remote_files(
             Path(remote_file["folder_path"]).joinpath(remote_file["name"])
         )
         if local_path.is_file():
-
-            if relative_path in datetimes_dict:
-                local_time = datetimes_dict[relative_path]
+            relative_path_for_dict = relative_path.replace(os.path.sep, "/")
+            if relative_path_for_dict in datetimes_dict:
+                local_time = datetimes_dict[relative_path_for_dict]
             else:
                 local_time = datetime.datetime.fromtimestamp(
                     local_path.stat().st_mtime, datetime.timezone.utc
@@ -650,8 +659,9 @@ def _sync_remote_docs(
             Path(remote_doc["folder_path"]).joinpath(remote_doc["name"])
         )
         if local_path.is_file():
-            if relative_path in datetimes_dict:
-                local_time = datetimes_dict[relative_path]
+            relative_path_for_dict = relative_path.replace(os.path.sep, "/")
+            if relative_path_for_dict in datetimes_dict:
+                local_time = datetimes_dict[relative_path_for_dict]
             else:
                 local_time = datetime.datetime.fromtimestamp(
                     local_path.stat().st_mtime, datetime.timezone.utc
@@ -683,12 +693,12 @@ def _sync_remote_docs(
                 os.utime(local_path, (remote_time.timestamp(), remote_time.timestamp()))
 
 
-def _pull(repo: Repo, client: SyncClient, project_id: str) -> None:
+def _pull(repo: Repo, client: SyncClient, project_id: str, git_branch: str) -> None:
     # attempt to "merge" the remote and the local working copy
 
     git = repo.git
     active_branch = repo.active_branch.name
-    git.checkout(SYNC_BRANCH)
+    git.checkout(git_branch)
     working_path = Path(repo.working_tree_dir)
     logger.debug("find last commit using remote server")
     # for optimization purpose
@@ -717,9 +727,7 @@ def _pull(repo: Repo, client: SyncClient, project_id: str) -> None:
         objects = [Path(b.abspath) for b in repo.head.commit.tree.traverse()]
         objects.reverse()
 
-        datetimes_dict = _get_datetime_from_git(
-            repo, SYNC_BRANCH, objects, working_path
-        )
+        datetimes_dict = _get_datetime_from_git(repo, git_branch, objects, working_path)
 
         _sync_deleted_items(working_path, remote_items, objects)
 
@@ -738,7 +746,7 @@ def _pull(repo: Repo, client: SyncClient, project_id: str) -> None:
         )
         # TODO reset en cas d'erreur ?
         # on se place sur la branche de synchro
-        git.checkout(SYNC_BRANCH)
+        git.checkout(git_branch)
     except Exception as e:
         # hard reset ?
         git.reset("--hard")
@@ -766,9 +774,9 @@ def _pull(repo: Repo, client: SyncClient, project_id: str) -> None:
             f"""Path type changed in server:
             {[d.a_path for d in diff_index.iter_change_type("T")]}"""
         )
-        update_ref(repo, message=COMMIT_MESSAGE_PREPULL)
+        update_ref(repo, message=COMMIT_MESSAGE_PREPULL, git_branch=git_branch)
     git.checkout(active_branch)
-    git.merge(SYNC_BRANCH)
+    git.merge(git_branch)
 
 
 @cli.command()
@@ -854,6 +862,7 @@ def share(
 
 
 @cli.command()
+@_GIT_BRANCH_OPTION
 @authentication_options
 @log_options
 @handle_exception(RepoNotCleanError)
@@ -864,12 +873,14 @@ def pull(
     save_password: Optional[bool],
     ignore_saved_user_info: bool,
     verbose: int,
+    git_branch: str,
 ) -> None:
     """Pull the files from sharelatex.
 
     In the current repository, it works as follows:
 
-    1. Pull in ``{SYNC_BRANCH}`` branch the latest version of the remote project\n
+    1. Pull in the latest version of the remote project in ``{SYNC_BRANCH}``
+    respectively the given branch.\n
     2. Attempt a merge in the working branch. If the merge can't be done automatically,
        you will be required to fix the conflict manually
     """
@@ -890,7 +901,7 @@ def pull(
         https_cert_check,
         save_password,
     )
-    _pull(repo, client, project_id)
+    _pull(repo, client, project_id, git_branch=git_branch)
 
 
 @cli.command()
@@ -909,6 +920,7 @@ def pull(
     help="""download whole project in a zip file from the server/ or download
  sequentially file by file from the server""",
 )
+@_GIT_BRANCH_OPTION
 @authentication_options
 @log_options
 @handle_exception(RepoNotCleanError)
@@ -923,6 +935,7 @@ def clone(
     https_cert_check: bool,
     whole_project_download: bool,
     verbose: int,
+    git_branch: str,
 ) -> None:
     f"""
     Get (clone) the files from sharelatex project URL and create a local git depot.
@@ -978,10 +991,10 @@ def clone(
         raise inst
     if whole_project_download:
         client.download_project(project_id, path=str(directory_as_path))
-        update_ref(repo, message=COMMIT_MESSAGE_CLONE)
+        update_ref(repo, message=COMMIT_MESSAGE_CLONE, git_branch=git_branch)
     else:
-        update_ref(repo, message=COMMIT_MESSAGE_CLONE)
-        _pull(repo, client, project_id)
+        update_ref(repo, message=COMMIT_MESSAGE_CLONE, git_branch=git_branch)
+        _pull(repo, client, project_id, git_branch=git_branch)
     # TODO(msimonin): add a decent default .gitignore ?
 
 
@@ -1006,6 +1019,7 @@ def _push(
     save_password: Optional[bool],
     ignore_saved_user_info: bool,
     verbose: int,
+    git_branch: str,
 ) -> None:
     set_log_level(verbose)
 
@@ -1043,12 +1057,12 @@ def _push(
     )
 
     if not force:
-        _pull(repo, client, project_id)
+        _pull(repo, client, project_id, git_branch=git_branch)
     config = Config(repo)
     # prevent git returning quoted path in diff when file path has unicode char
     config.set_value("core", "quotepath", "off")
     master_commit = repo.commit("HEAD")
-    sync_commit = repo.commit(SYNC_BRANCH)
+    sync_commit = repo.commit(git_branch)
     diff_index = sync_commit.diff(master_commit)
 
     project_data = client.get_project_data(project_id)
@@ -1090,11 +1104,13 @@ def _push(
             project_data = client.get_project_data(project_id)
             folders = {f["folder_id"] for f in walk_folders(project_data)}
     if repo.is_dirty(index=True, working_tree=True, untracked_files=True):
-        update_ref(repo, message=COMMIT_MESSAGE_PUSH)
+        update_ref(repo, message=COMMIT_MESSAGE_PUSH, git_branch=git_branch)
 
 
 @cli.command()
 @click.option("--force", is_flag=True, help="Force push", default=False)
+@_GIT_BRANCH_OPTION
+@click.option("--force", is_flag=True, help="Force push")
 @authentication_options
 @log_options
 @handle_exception(RepoNotCleanError)
@@ -1106,6 +1122,7 @@ def push(
     save_password: Optional[bool],
     ignore_saved_user_info: bool,
     verbose: int,
+    git_branch: str,
 ) -> None:
     """Synchronize the local copy with the remote version.
 
@@ -1125,6 +1142,7 @@ def push(
         save_password,
         ignore_saved_user_info,
         verbose,
+        git_branch=git_branch,
     )
 
 
@@ -1149,6 +1167,7 @@ upload sequentially file by file to the server""",
  by seconds to the server (some servers limit the this rate),
  useful with --no-whole-project-upload""",
 )
+@_GIT_BRANCH_OPTION
 @authentication_options
 @log_options
 @handle_exception(RepoNotCleanError)
@@ -1164,6 +1183,7 @@ def new(
     save_password: Optional[bool],
     ignore_saved_user_info: bool,
     verbose: int,
+    git_branch: str,
 ) -> None:
     """
     Upload the current directory as a new sharelatex project.
@@ -1217,7 +1237,7 @@ def new(
                                 f["folder_id"] for f in walk_folders(project_data)
                             }
                         upload_rate_limiter.event_inc()
-            update_ref(repo, message=COMMIT_MESSAGE_UPLOAD)
+            update_ref(repo, message=COMMIT_MESSAGE_UPLOAD, git_branch=git_branch)
         except Exception as inst:
             logger.debug(f"delete failed project {project_id} into server ")
             client.delete(project_id, forever=True)

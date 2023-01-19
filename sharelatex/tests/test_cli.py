@@ -3,6 +3,7 @@ import os
 import queue
 import shlex
 import tempfile
+import typing
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
@@ -15,7 +16,11 @@ from ddt import data, ddt, unpack
 from git import Repo
 
 from sharelatex import SyncClient, get_authenticator_class, walk_project_data
-from sharelatex.cli import MESSAGE_REPO_ISNT_CLEAN, URL_MALFORMED_ERROR_MESSAGE
+from sharelatex.cli import (
+    MESSAGE_REPO_ISNT_CLEAN,
+    SYNC_BRANCH,
+    URL_MALFORMED_ERROR_MESSAGE,
+)
 from sharelatex.cli import cli as cli_cli
 
 logging.basicConfig(level=logging.DEBUG)
@@ -126,7 +131,12 @@ class Project:
 
 
 @contextmanager
-def project(project_name: str, branch: Optional[str] = None) -> Generator:
+def project(
+    project_name: str,
+    branch: Optional[str] = None,
+    sharelatex_git_branch: typing.Optional[str] = None,
+) -> Generator:
+
     """A convenient contextmanager to create a temporary project on sharelatex."""
 
     # First we create a client.
@@ -150,15 +160,18 @@ def project(project_name: str, branch: Optional[str] = None) -> Generator:
             project = Project(client, project_id, fs_path, username, password)
 
             # let's clone it
-            args = (
+            args: str = (
                 f"--auth_type={AUTH_TYPE} "
                 f"--username={username} "
                 f"--password={shlex.quote(password)} "
-                f"--save-password --no-https-cert-check"
+                f"--save-password --no-https-cert-check "
             )
+            if sharelatex_git_branch is not None:
+                args += f"--git-branch {sharelatex_git_branch}"
             arguments_for_cli = ["clone", project.url] + [a for a in args.split(" ")]
             result = CliRunner().invoke(cli_cli, arguments_for_cli)
             assert result.exit_code == 0
+
             os.chdir(project.fs_path)
             check_call("git config --local user.email 'test@test.com'", shell=True)
             check_call("git config --local user.name 'me'", shell=True)
@@ -179,14 +192,15 @@ def project(project_name: str, branch: Optional[str] = None) -> Generator:
 
 
 def new_project(
-    branch: Optional[str] = None,
+    branch: Optional[str] = None, sharelatex_git_branch: typing.Optional[str] = None
 ) -> Callable[[Any], Any]:
     def _new_project(f: Any) -> Any:
         """A convenient decorator to launch a function in the
         context of a new project."""
 
         def wrapped(*args: Any, **kwargs: Any) -> Any:
-            with project(f.__name__, branch=branch) as p:  # type: ignore
+            with project(f.__name__, branch=branch, sharelatex_git_branch=sharelatex_git_branch) as p:  # type: ignore
+
                 kwargs.update(project=p)
                 return f(*args, **kwargs)
 
@@ -206,6 +220,13 @@ class TestCli(unittest.TestCase):
     @new_project()
     def test_clone(self, project: Project) -> None:
         pass
+
+    @new_project(branch="main", sharelatex_git_branch="test-development")
+    def test_clone_other_branch_name(self, project=None):
+        branch_names = frozenset(b.name for b in project.repo.branches)
+        self.assertIn("test-development", branch_names)
+        self.assertIn("main", branch_names)
+        self.assertNotIn(SYNC_BRANCH, branch_names)
 
     @new_project()
     def test_clone_and_pull(self, project: Project) -> None:
