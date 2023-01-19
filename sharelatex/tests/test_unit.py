@@ -1,15 +1,17 @@
+import datetime
 import os
 import tempfile
+import typing
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from sharelatex.cli import _sync_deleted_items, _sync_remote_files
+from sharelatex.cli import RemoteItem, _sync_deleted_items, _sync_remote_files
 
 
 @contextmanager
-def into_tmpdir():
+def into_tmpdir() -> typing.Generator:
     """Run some code in the context of a tmp dir."""
 
     old_cwd = os.getcwd()
@@ -23,24 +25,30 @@ def into_tmpdir():
             os.chdir(old_cwd)
 
 
-def tmpdir(f):
-    def wrapped(*args, **kwargs):
-        with into_tmpdir() as tmpdir:
+def tmpdir(f: typing.Any) -> typing.Any:
+    """
+    Temporary directory.
+    """
+
+    def _wrapped(*args: typing.Any, **kwargs: typing.Any) -> None:
+        with into_tmpdir() as tmpdir: # type: ignore
             # create a dummy env there
             f(*args, Path(tmpdir), **kwargs)
 
-    return wrapped
+    return _wrapped
 
 
 class TestPull(unittest.TestCase):
     @patch.object(Path, "rmdir")
     @patch.object(Path, "unlink")
-    def test_sync_delete_file_nomore_present_on_server(self, mock_unlink, mock_rmdir):
+    def test_sync_delete_file_nomore_present_on_server(
+        self, mock_unlink: typing.Any, mock_rmdir: typing.Any
+    ) -> None:
         # simple test one empty folder in the remote server
-        remote_items = [
+        remote_items = typing.cast(typing.Sequence[RemoteItem],[
             # the rootFolder
             {"folder_id": "0", "name": ".", "folder_path": ".", "type": "folder"}
-        ]
+        ])
         # But one file locally (abs path)
         working_path = Path.cwd()
         f = Path("image.png").resolve()
@@ -52,9 +60,9 @@ class TestPull(unittest.TestCase):
         mock_unlink.assert_called_once()
         mock_unlink.assert_called_with(f)
 
-    @tmpdir
-    def test_sync_remote_files_download_new_files(self, tmpdir):
-        remote_items = [
+    @tmpdir # type: ignore
+    def test_sync_remote_files_download_new_files(self, _: typing.Any) -> None:
+        remote_items = typing.cast(typing.Sequence[RemoteItem], [
             {
                 "folder_id": "rootFolderId",
                 "name": ".",
@@ -68,15 +76,15 @@ class TestPull(unittest.TestCase):
                 "folder_path": ".",
                 "type": "file",
             },
-        ]
+        ])
         client = MagicMock()
         client.get_file = MagicMock()
         project_id = 0
         working_path = Path.cwd()
         # force to read local OS datetime (not git log datetime)
-        datetimes_dict = {}
+        datetimes_dict: typing.Mapping[str, datetime.datetime] = {}
         _sync_remote_files(
-            client, project_id, working_path, remote_items, datetimes_dict
+            client, str(project_id), working_path, remote_items, datetimes_dict
         )
 
         client.get_file.assert_called_once()
