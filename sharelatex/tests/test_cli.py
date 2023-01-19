@@ -401,7 +401,7 @@ class TestCli(unittest.TestCase):
             # TODO: we could check the diff
             self.assertFalse(os.path.exists(path_as_path))
 
-        _test_clone_and_pull_remote_folder_deletion(path_as_path="./test_dir")
+        _test_clone_and_pull_remote_folder_deletion(c_path="./test_dir")
 
     @new_project(branch="main")
     def test_clone_and_pull_addgitignore(self, project: Project) -> None:
