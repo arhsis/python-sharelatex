@@ -1033,7 +1033,7 @@ def _push(
         entities = walk_project_data(
             c_project_data,
             lambda x: Path(x["folder_path"]) == path_as_path.parent
-            and x["name"] == path_as_path.name,
+            and x["name"] == path_as_path.name,  # noqa: W503
         )
         # there should be one
         entity = next(entities)
