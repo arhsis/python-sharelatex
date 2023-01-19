@@ -96,4 +96,6 @@ class TestPull(unittest.TestCase):
 
         client.get_file.assert_called_once()
         dest_path = working_path / "myimage.png"
-        client.get_file.assert_called_with(project_id, "myimageId", dest_path=dest_path)
+        client.get_file.assert_called_with(
+            str(project_id), "myimageId", dest_path=str(dest_path)
+        )
