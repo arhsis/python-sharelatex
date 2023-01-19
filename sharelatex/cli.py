@@ -863,7 +863,17 @@ def share(
     logger.debug(response)
 
 
-@cli.command()
+@cli.command(
+    help=f"""Pull the files from sharelatex.
+
+    In the current repository, it works as follows:
+
+    1. Pull in the latest version of the remote project in ``{SYNC_BRANCH}``
+    respectively the given branch.\n
+    2. Attempt a merge in the working branch. If the merge can't be done automatically,
+       you will be required to fix the conflict manually
+    """
+)
 @_GIT_BRANCH_OPTION
 @authentication_options
 @log_options
@@ -877,15 +887,6 @@ def pull(
     verbose: int,
     git_branch: str,
 ) -> None:
-    """Pull the files from sharelatex.
-
-    In the current repository, it works as follows:
-
-    1. Pull in the latest version of the remote project in ``{SYNC_BRANCH}``
-    respectively the given branch.\n
-    2. Attempt a merge in the working branch. If the merge can't be done automatically,
-       you will be required to fix the conflict manually
-    """
     set_log_level(verbose)
 
     # Fail if the repo is not clean
