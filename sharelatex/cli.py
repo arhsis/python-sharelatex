@@ -161,7 +161,9 @@ class Config:
         """
         get_password
         """
-        return self.keyring.get_password(service, username)
+        return typing.cast(
+            typing.Optional[str], self.keyring.get_password(service, username)
+        )
 
     def set_password(self, service: str, username: str, password: str) -> None:
         """
@@ -1097,8 +1099,10 @@ def push(
     This works as follows:
 
     1. The remote version is pulled (see the :program:`pull` command)\n
-    2. After the merge succeed, the merged version is uploaded back to the remote server.\n
-       Note that only the files that have changed (modified/added/removed) will be uploaded.
+    2. After the merge succeed, the merged version is uploaded back to the remote
+    server.\n
+       Note that only the files that have changed (modified/added/removed) will
+       be uploaded.
     """
     _push(
         force,

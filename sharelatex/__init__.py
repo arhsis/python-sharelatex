@@ -9,7 +9,7 @@ import urllib.parse
 import uuid
 import zipfile
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Tuple, TypedDict
+from typing import Any, Callable, Optional, Tuple, TypedDict
 
 import filetype
 import requests
@@ -201,7 +201,9 @@ def walk_files(project_data: ProjectData) -> typing.Generator:
     Raises:
         StopIteration if the file isn't found
     """
-    return walk_project_data(project_data, lambda x: x["type"] == "file")  # type: ignore
+    return walk_project_data(  # type: ignore
+        project_data, lambda x: x["type"] == "file"  # type: ignore
+    )  # type: ignore
 
 
 def walk_folders(project_data: ProjectData) -> typing.Generator:
@@ -214,7 +216,9 @@ def walk_folders(project_data: ProjectData) -> typing.Generator:
     Raises:
         StopIteration if the file isn't found
     """
-    return walk_project_data(project_data, lambda x: x["type"] == "folder")  # type: ignore
+    return walk_project_data(  # type: ignore
+        project_data, lambda x: x["type"] == "folder"  # type: ignore
+    )  # type: ignore
 
 
 def check_login_error(response: requests.Response) -> None:
