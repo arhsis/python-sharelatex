@@ -102,7 +102,7 @@ class FolderRep(TypedDict):
 
 def walk_project_data(
     project_data: ProjectData, predicate: Callable[[Any], bool] = lambda x: True
-):
+) -> Any:
     """Iterate on the project entities (folders, files).
 
     Args:
@@ -120,7 +120,7 @@ def walk_project_data(
         A generator for the matching entities
     """
 
-    def _walk_project_data(current: typing.Sequence[FolderRep], parent: str):
+    def _walk_project_data(current: typing.Sequence[FolderRep], parent: str) -> Any:
         """Iterate on the project structure
 
         Args:
@@ -148,18 +148,18 @@ def walk_project_data(
                     "folder_path": folder_path,
                     "type": "file",
                 }
-                fd.update(f)
+                fd.update(f)  # type: ignore
                 if predicate(fd):
                     yield fd
             for d in c["docs"]:
                 fd = {"folder_id": folder_id, "folder_path": folder_path, "type": "doc"}
-                fd.update(d)
+                fd.update(d)  # type: ignore
                 if predicate(fd):
                     yield fd
             if len(c["folders"]) > 0:
                 yield from _walk_project_data(c["folders"], folder_path)
 
-    return _walk_project_data(project_data["rootFolder"], "")
+    return _walk_project_data(project_data["rootFolder"], "")  # type: ignore
 
 
 class FolderData(TypedDict):
@@ -188,7 +188,7 @@ def lookup_folder(project_data: ProjectData, folder_path: str) -> FolderData:
     folders = walk_project_data(
         project_data, predicate=lambda x: Path(x["folder_path"]) == folder_path_as_path
     )
-    return next(folders)
+    return next(folders)  # type: ignore
 
 
 def walk_files(project_data: ProjectData) -> typing.Generator:
@@ -201,7 +201,7 @@ def walk_files(project_data: ProjectData) -> typing.Generator:
     Raises:
         StopIteration if the file isn't found
     """
-    return walk_project_data(project_data, lambda x: x["type"] == "file")
+    return walk_project_data(project_data, lambda x: x["type"] == "file")  # type: ignore
 
 
 def walk_folders(project_data: ProjectData) -> typing.Generator:
@@ -214,7 +214,7 @@ def walk_folders(project_data: ProjectData) -> typing.Generator:
     Raises:
         StopIteration if the file isn't found
     """
-    return walk_project_data(project_data, lambda x: x["type"] == "folder")
+    return walk_project_data(project_data, lambda x: x["type"] == "folder")  # type: ignore
 
 
 def check_login_error(response: requests.Response) -> None:
@@ -252,7 +252,7 @@ def check_login_error(response: requests.Response) -> None:
         pass
 
 
-def get_csrf_Token(html_text: str) -> typing.Optional[str]:
+def get_csrf_Token(html_text: str) -> str:
     """Retrieve csrf token from a html text page from sharelatex server.
 
     Args:
@@ -269,11 +269,8 @@ def get_csrf_Token(html_text: str) -> typing.Optional[str]:
             parsed = html.fromstring(html_text)
             meta = parsed.xpath("//meta[@name='ol-csrfToken']")
             if meta:
-                return meta[0].get("content")
-            else:
-                return None
-    else:
-        return None
+                return typing.cast(str, meta[0].get("content"))
+    raise Exception(f"We could not find the CSRF in {html_text}")
 
 
 class Authenticator:
@@ -281,18 +278,18 @@ class Authenticator:
     Authenticator
     """
 
-    def __init__(self, session: Optional[requests.session] = None):
-        self.login_url = None
-        self.username = None
-        self.password = None
-        self.sid_name = None
-        self.verify = None
-        self.csrf = None
-        self.login_data = None
-        self._session: requests.session = session
+    def __init__(self, session: Optional[requests.Session] = None):
+        self.login_url: str = ""
+        self.username: str = ""
+        self.password: str = ""
+        self.sid_name: str = ""
+        self.verify: bool = True
+        self.csrf: str = ""
+        self.login_data: typing.Mapping[str, Any] = {}
+        self._session: requests.Session = typing.cast(requests.Session, session)
 
     @property
-    def session(self):
+    def session(self) -> requests.Session:
         """
         Session.
         """
@@ -301,16 +298,18 @@ class Authenticator:
         return self._session
 
     @session.setter
-    def session(self, session):
+    def session(self, session: requests.Session) -> None:
         self._session = session
 
     def authenticate(
         self,
-        base_url: str = None,
-        username: str = None,
-        password: str = None,
+        base_url: str,
+        username: str,
+        password: str,
         verify: bool = True,
-    ) -> Tuple[str, Dict]:
+        login_path: str = "/login",
+        sid_name: str = "sharelatex.sid",
+    ) -> Tuple[typing.Mapping[str, Any], typing.Mapping[str, Any]]:
         """Authenticate.
 
         Returns:
@@ -327,7 +326,7 @@ class DefaultAuthenticator(Authenticator):
 
     def __init__(
         self,
-    ):
+    ) -> None:
         """Use the default login form of the community edition.
 
         Args:
@@ -345,9 +344,9 @@ class DefaultAuthenticator(Authenticator):
         username: str,
         password: str,
         verify: bool = True,
-        login_path="/login",
-        sid_name="sharelatex.sid",
-    ) -> Tuple[str, str]:
+        login_path: str = "/login",
+        sid_name: str = "sharelatex.sid",
+    ) -> Tuple[typing.Mapping[str, Any], typing.Mapping[str, Any]]:
         self.login_url = urllib.parse.urljoin(base_url, login_path)
         self.username = username
         self.password = password
@@ -389,9 +388,9 @@ class LegacyAuthenticator(DefaultAuthenticator):
         username: str,
         password: str,
         verify: bool = True,
-        login_path="/login",
-        sid_name="sharelatex.sid",
-    ) -> Tuple[str, str]:
+        login_path: str = "/login",
+        sid_name: str = "sharelatex.sid",
+    ) -> Tuple[typing.Mapping[str, Any], typing.Mapping[str, Any]]:
         """
         Authenticate.
         """
@@ -431,13 +430,17 @@ class GitlabAuthenticator(DefaultAuthenticator):
     we try to log in with the local form.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-    def _login_data_ldap(self, username, password):
+    def _login_data_ldap(
+        self, username: str, password: str
+    ) -> typing.Mapping[str, str]:
         return {"username": username, "password": password}
 
-    def _login_data_local(self, username, password):
+    def _login_data_local(
+        self, username: str, password: str
+    ) -> typing.Mapping[str, str]:
         return {"user[login]": username, "user[password]": password}
 
     def _get_login_forms(self) -> Any:
@@ -454,9 +457,9 @@ class GitlabAuthenticator(DefaultAuthenticator):
         username: str,
         password: str,
         verify: bool = True,
-        login_path="/auth/callback/gitlab",
-        sid_name="sharelatex.sid",
-    ):
+        login_path: str = "/auth/callback/gitlab",
+        sid_name: str = "sharelatex.sid",
+    ) -> Tuple[typing.Mapping[str, Any], typing.Mapping[str, Any]]:
         """
         Authenticate.
         """
@@ -489,8 +492,8 @@ class GitlabAuthenticator(DefaultAuthenticator):
         self,
         url: str,
         html_form: Any,  # parsed html
-        login_data_fnc: Callable[[str, str], Dict],
-    ) -> Tuple[str, str]:
+        login_data_fnc: Callable[[str, str], typing.Mapping[str, str]],
+    ) -> Tuple[typing.Mapping[str, Any], typing.Mapping[str, Any]]:
 
         if not any(
             field in html_form.fields.keys()
@@ -551,9 +554,9 @@ class SyncClient(object):
         self,
         *,
         base_url: str = BASE_URL,
-        username: typing.Optional[str] = None,
-        password: typing.Optional[str] = None,
-        verify: typing.Optional[bool] = True,
+        username: str = "",
+        password: str = "",
+        verify: bool = True,
         authenticator: typing.Optional[Authenticator] = None,
     ) -> None:
         """Creates the client.
@@ -642,32 +645,32 @@ class SyncClient(object):
             Namespace.
             """
 
-            def on_connect(self):
+            def on_connect(self) -> None:
                 """
                 On connect.
                 """
                 logger.debug("[Connected] Yeah !!")
 
-            def on_reconnect(self):
+            def on_reconnect(self) -> None:
                 """
                 On re.
                 """
                 logger.debug("[Reconnected] re-Yeah !!")
 
-            def on_disconnect(self):
+            def on_disconnect(self) -> None:
                 """
                 On dis.
                 """
                 logger.debug("[Disconnected]  snif!  ")
 
-        def on_joint_project(*args):
+        def on_joint_project(*args: Any) -> None:
             """
             on_joint_project
             """
             storage.project_data = args[1]
             storage.is_data = True
 
-        def on_connection_rejected(*args):
+        def on_connection_rejected(*args: Any) -> None:
             """
             on_connection_rejected
             """
@@ -683,7 +686,7 @@ class SyncClient(object):
             headers=headers,
         ) as socketIO:
 
-            def on_connection_accepted(*args):
+            def on_connection_accepted(*args: Any) -> None:
                 """
                 on_connection_accepted
                 """
@@ -700,10 +703,14 @@ class SyncClient(object):
             logger.debug("[socketIO] wait for project data finish !")
         # NOTE(msimonin): Check return type
         # this must be a valid dict (e.g., not None)
-        return storage.project_data
+        return typing.cast(ProjectData, storage.project_data)
 
     def _request(
-        self, verb: typing.Literal["POST", "GET", "DELETE"], url: str, *args, **kwargs
+        self,
+        verb: typing.Literal["POST", "GET", "DELETE"],
+        url: str,
+        *args: Any,
+        **kwargs: Any,
     ) -> requests.Response:
         headers = kwargs.get("headers", {})
         headers.update(self.headers)
@@ -715,13 +722,13 @@ class SyncClient(object):
         r.raise_for_status()
         return r
 
-    def _get(self, url, *args, **kwargs) -> requests.Response:
+    def _get(self, url: str, *args: Any, **kwargs: Any) -> requests.Response:
         return self._request("GET", url, *args, **kwargs)
 
-    def _post(self, url, *args, **kwargs) -> requests.Response:
+    def _post(self, url: str, *args: Any, **kwargs: Any) -> requests.Response:
         return self._request("POST", url, *args, **kwargs)
 
-    def _delete(self, url, *args, **kwargs) -> requests.Response:
+    def _delete(self, url: str, *args: Any, **kwargs: Any) -> requests.Response:
         return self._request("DELETE", url, *args, **kwargs)
 
     def get_project_update_data(self, project_id: str) -> UpdateDatum:
@@ -738,7 +745,7 @@ class SyncClient(object):
         logger.info(f"Downloading update data for {project_id}")
         r = self._get(url)
         r.raise_for_status()
-        return r.json()
+        return typing.cast(UpdateDatum, r.json())
 
     def download_project(
         self, project_id: str, *, path: str = ".", keep_zip: bool = False
@@ -836,25 +843,25 @@ class SyncClient(object):
             Namespace.
             """
 
-            def on_connect(self):
+            def on_connect(self) -> None:
                 """
                 on_connect.
                 """
                 logger.debug("[Connected] Yeah !!")
 
-            def on_reconnect(self):
+            def on_reconnect(self) -> None:
                 """
                 on_reconnect.
                 """
                 logger.debug("[Reconnected] re-Yeah !!")
 
-            def on_disconnect(self):
+            def on_disconnect(self) -> None:
                 """
                 on_disconnect.
                 """
                 logger.debug("[Disconnected]  snif!  ")
 
-        def on_connection_rejected(*args):
+        def on_connection_rejected(*args: Any) -> None:
             """
             on_connection_rejected.
             """
@@ -870,7 +877,7 @@ class SyncClient(object):
             headers=headers,
         ) as socketIO:
 
-            def on_joint_doc(*args):
+            def on_joint_doc(*args: Any) -> None:
                 """
                 on_joint_doc.
                 """
@@ -881,14 +888,14 @@ class SyncClient(object):
                 ]
                 storage.is_data = True
 
-            def on_joint_project(*args):
+            def on_joint_project(*args: Any) -> None:
                 """
                 on_joint_project.
                 """
                 storage.project_data = args[1]
                 socketIO.emit("joinDoc", doc_id, {"encodeRanges": True}, on_joint_doc)
 
-            def on_connection_accepted(*args):
+            def on_connection_accepted(*args: Any) -> None:
                 """
                 on_connection_accepted.
                 """
@@ -907,9 +914,9 @@ class SyncClient(object):
         if dest_path is None:
             return "\n".join(storage.doc_data)
         else:
-            dest_path = Path(dest_path)
-            dest_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(dest_path, "w") as f:
+            dest_path_as_path = Path(dest_path)
+            dest_path_as_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(dest_path_as_path, "w") as f:
                 f.write("\n".join(storage.doc_data))
             return True
 
@@ -938,9 +945,9 @@ class SyncClient(object):
         if dest_path is None:
             return r.content.decode()
         else:
-            dest_path = Path(dest_path)
-            dest_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(dest_path, "bw") as f:
+            dest_path_as_path = Path(dest_path)
+            dest_path_as_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(dest_path_as_path, "bw") as f:
                 f.write(r.content)
             return True
 
@@ -1003,15 +1010,13 @@ class SyncClient(object):
 
         return r
 
-    def upload_file(
-        self, project_id: str, folder_id: str, path: str
-    ) -> requests.Response:
+    def upload_file(self, project_id: str, folder_id: str, c_path: str) -> Any:
         """Upload a file to sharelatex.
 
         Args:
             project_id (str): The project id
             folder_id (str): The parent folder
-            path (str): Local path to the file
+            path_as_path (str): Local path to the file
 
         Returns:
             requests response
@@ -1020,24 +1025,24 @@ class SyncClient(object):
             Exception if the file can't be uploaded
         """
         url = f"{self.base_url}/project/{project_id}/upload"
-        path = Path(path)
+        path_as_path = Path(c_path)
         # TODO(msimonin): handle correctly the content-type
-        mime = filetype.guess(str(path))
+        mime = filetype.guess(str(path_as_path))
         if not mime:
             mime = "text/plain"
-        files = {"qqfile": (path.name, open(path, "rb"), mime)}
+        files = {"qqfile": (path_as_path.name, open(path_as_path, "rb"), mime)}
         params = {
             "folder_id": folder_id,
             "_csrf": self.login_data["_csrf"],
             "qquid": str(uuid.uuid4()),
-            "qqfilename": path.name,
-            "qqtotalfilesize": os.path.getsize(path),
+            "qqfilename": path_as_path.name,
+            "qqtotalfilesize": os.path.getsize(path_as_path),
         }
         r = self._post(url, params=params, files=files, verify=self.verify)
         r.raise_for_status()
         response = r.json()
         if not response["success"]:
-            raise Exception(f"Uploading {path} fails")
+            raise Exception(f"Uploading {path_as_path} fails")
         return response
 
     def create_folder(self, project_id: str, parent_folder: str, name: str) -> Any:
@@ -1096,7 +1101,7 @@ class SyncClient(object):
             metadata["_id"], parent_id, os.path.basename(folder_path_as_path)
         )
         # This returns the id of the deepest folder
-        return new_folder["_id"]
+        return typing.cast(str, new_folder["_id"])
 
     def upload(self, path: str) -> Any:
         """Upload a project (zip) to sharelatex.
@@ -1177,7 +1182,9 @@ class SyncClient(object):
             raise CompilationError(response)
         return response
 
-    def update_project_settings(self, project_id: str, **settings) -> requests.Response:
+    def update_project_settings(
+        self, project_id: str, **settings: Any
+    ) -> requests.Response:
         """Update the project settings.
 
         Update the project settings.
@@ -1257,4 +1264,3 @@ class SyncClient(object):
         r = self._delete(url, data=data, params=params, verify=self.verify)
         r.raise_for_status()
         return r
-
