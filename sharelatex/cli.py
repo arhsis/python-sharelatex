@@ -37,11 +37,14 @@ from sharelatex import (
     walk_folders,
     walk_project_data,
 )
+import typer
 
 try:
     from typing import TypedDict
 except ImportError:
     from typing_extensions import TypedDict  # type: ignore
+
+cli = typer.Typer()
 
 URL_MALFORMED_ERROR_MESSAGE = "projet_url is not well formed or missing"
 
@@ -479,79 +482,59 @@ def handle_exception(*exceptions: Type[SharelatexError]) -> Callable:
     return wrapper
 
 
-@click.group()
-def cli() -> None:
-    pass
-
-
-_GIT_BRANCH_OPTION = click.option(
+_GIT_BRANCH_OPTION = typer.Option(
+    SYNC_BRANCH,
     "--git-branch",
     "-b",
-    default=SYNC_BRANCH,
     help=f"The name of a branch. We will commit the changes from Sharelatex "
     f"on this branch.\n\n Default: {SYNC_BRANCH}",
 )
 
+_VERBOSE_OPTION = typer.Option(
+    2,
+    "-v",
+    "--verbose",
+    count=True,
+    help="verbose level (can be: -v, -vv, -vvv)",
+)
+_SILENT_OPTION = typer.Option("-s", "--silent", "verbose", flag_value=0)
+_DEBUG_OPTION = typer.Option("--debug", "-d", "verbose", flag_value=3)
 
-def log_options(function: Callable) -> Callable:
-    """
-    The log options.
-    """
-    function = click.option(
-        "-v",
-        "--verbose",
-        count=True,
-        default=2,
-        help="verbose level (can be: -v, -vv, -vvv)",
-    )(function)
-    function = click.option("-s", "--silent", "verbose", flag_value=0)(function)
-    function = click.option("--debug", "-d", "verbose", flag_value=3)(function)
-    return function
+_AUTH_TYPE_OPTION = typer.Option(
+    None,
+    "--auth_type",
+    "-a",
+    help="""Authentication type.""",
+)
+_USERNAME_OPTION = typer.Option(
+    None,
+    "--username",
+    "-u",
+    help="""Username for sharelatex server account, if username is not provided,
+                                it will be asked online""",
+)
 
-
-def authentication_options(function: Callable) -> Callable:
-    """
-    authentication_options
-    """
-    function = click.option(
-        "--auth_type",
-        "-a",
-        default=None,
-        help="""Authentication type.""",
-        type=click.Choice(list(AUTH_DICT.keys())),
-    )(function)
-
-    function = click.option(
-        "--username",
-        "-u",
-        default=None,
-        help="""Username for sharelatex server account, if username is not provided,
+_PASSWORD_OPTION = typer.Option(
+    None,
+    "--password",
+    "-p",
+    help="""User password for sharelatex server, if password is not provided,
  it will be asked online""",
-    )(function)
-    function = click.option(
-        "--password",
-        "-p",
-        default=None,
-        help="""User password for sharelatex server, if password is not provided,
- it will be asked online""",
-    )(function)
-    function = click.option(
-        "--save-password/--no-save-password",
-        default=None,
-        help="""Save user account information (in OS keyring system)""",
-    )(function)
-    function = click.option(
-        "--ignore-saved-user-info",
-        default=False,
-        help="""Forget user account information already saved (in OS keyring system)""",
-    )(function)
-
-    return function
+)
+_SAVE_PASSWORD_OPTION = typer.Option(
+    None,
+    "--save-password/--no-save-password",
+    help="""Save user account information (in OS keyring system)""",
+)
+_IGNORE_SAVED_USER_INFO_OPTION = typer.Option(
+    False,
+    "--ignore-saved-user-info",
+    help="""Forget user account information already saved (in OS keyring system)""",
+)
 
 
 @cli.command(help="test log levels")
-@log_options
-def test(verbose: int) -> None:
+def test(verbose: int = _VERBOSE_OPTION) -> None:
     set_log_level(verbose)
     logger.debug("debug")
     logger.info("info")
@@ -782,17 +765,14 @@ def _pull(repo: Repo, client: SyncClient, project_id: str, git_branch: str) -> N
 
 
 @cli.command()
-@click.argument("project_id", default="")
-@authentication_options
-@log_options
 def compile(
-    project_id: str,
-    auth_type: str,
-    username: Optional[str],
-    password: Optional[str],
-    save_password: Optional[bool],
-    ignore_saved_user_info: bool,
-    verbose: int,
+    project_id: str = typer.Argument(""),
+    auth_type: str = _AUTH_TYPE_OPTION,
+    username: Optional[str] = _USERNAME_OPTION,
+    password: Optional[str] = _PASSWORD_OPTION,
+    save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
+    ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
+    verbose: int = _VERBOSE_OPTION,
 ) -> None:
     """
     Compile the remote version of a project
@@ -818,25 +798,20 @@ def compile(
 
 
 @cli.command()
-@click.argument("email", default="")
-@click.option("--project_id", default=None)
-@click.option(
-    "--can-edit/--read-only",
-    default=True,
-    help="""Authorize user to edit the project or not""",
-)
-@authentication_options
-@log_options
 def share(
-    project_id: str,
-    email: str,
-    can_edit: bool,
-    auth_type: str,
-    username: Optional[str],
-    password: Optional[str],
-    save_password: Optional[bool],
-    ignore_saved_user_info: bool,
-    verbose: int,
+    project_id: str = typer.Option(None, "--project_id"),
+    email: str = typer.Argument(""),
+    can_edit: bool = typer.Option(
+        True,
+        "--can-edit/--read-only",
+        help="""Authorize user to edit the project or not""",
+    ),
+    auth_type: str = _AUTH_TYPE_OPTION,
+    username: Optional[str] = _USERNAME_OPTION,
+    password: Optional[str] = _PASSWORD_OPTION,
+    save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
+    ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
+    verbose: int = _VERBOSE_OPTION,
 ) -> None:
     """
     Send an invitation to share (edit/view) a project
@@ -874,18 +849,15 @@ def share(
        you will be required to fix the conflict manually
     """
 )
-@_GIT_BRANCH_OPTION
-@authentication_options
-@log_options
 @handle_exception(RepoNotCleanError)
 def pull(
-    auth_type: str,
-    username: Optional[str],
-    password: Optional[str],
-    save_password: Optional[bool],
-    ignore_saved_user_info: bool,
-    verbose: int,
-    git_branch: str,
+    auth_type: str = _AUTH_TYPE_OPTION,
+    username: Optional[str] = _USERNAME_OPTION,
+    password: Optional[str] = _PASSWORD_OPTION,
+    save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
+    ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
+    verbose: int = _VERBOSE_OPTION,
+    git_branch: str = _GIT_BRANCH_OPTION,
 ) -> None:
     set_log_level(verbose)
 
@@ -907,40 +879,21 @@ def pull(
     _pull(repo, client, project_id, git_branch=git_branch)
 
 
-@cli.command()
-@click.argument(
-    "projet_url", default=""
-)  # , help="The project url (https://sharelatex.irisa.fr/1234567890)")
-@click.argument("directory", default="", type=click.Path(file_okay=False))
-@click.option(
+_HTTPS_CERT_CHECK_OPTION = typer.Option(
+    True,
     "--https-cert-check/--no-https-cert-check",
-    default=True,
     help="""force to check https certificate or not""",
 )
-@click.option(
+_WHOLE_PROJECT_OPTION = typer.Option(
+    True,
     "--whole-project-download/--no-whole-project-download",
-    default=True,
-    help="""download whole project in a zip file from the server/ or download
+    help="""Upload/download whole project in a zip file from the server/ or Upload/download
  sequentially file by file from the server""",
 )
-@_GIT_BRANCH_OPTION
-@authentication_options
-@log_options
-@handle_exception(RepoNotCleanError)
-def clone(
-    projet_url: str,
-    directory: str,
-    auth_type: str,
-    username: Optional[str],
-    password: Optional[str],
-    save_password: Optional[bool],
-    ignore_saved_user_info: bool,
-    https_cert_check: bool,
-    whole_project_download: bool,
-    verbose: int,
-    git_branch: str,
-) -> None:
-    f"""
+
+
+@cli.command(
+    help=f"""
     Get (clone) the files from sharelatex project URL and create a local git depot.
 
     The optional target directory will be created if it doesn't exist. The command
@@ -952,7 +905,25 @@ def clone(
         1. Download and unzip the remote project in the target directory\n
         2. Initialize a fresh git repository\n
         3. Create an extra ``{SYNC_BRANCH}`` to keep track of the remote versions of
-           the project. This branch must not be updated manually.
+    the project. This branch must not be updated manually.
+    """
+)
+@handle_exception(RepoNotCleanError)
+def clone(
+    projet_url: str = typer.Argument(""),
+    directory: str = typer.Argument("", file_okay=False),
+    auth_type: str = _AUTH_TYPE_OPTION,
+    username: Optional[str] = _USERNAME_OPTION,
+    password: Optional[str] = _PASSWORD_OPTION,
+    save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
+    ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
+    whole_project_download: bool = _WHOLE_PROJECT_OPTION,
+    https_cert_check: bool = _HTTPS_CERT_CHECK_OPTION,
+    git_branch: str = _GIT_BRANCH_OPTION,
+    verbose: int = _VERBOSE_OPTION,
+) -> None:
+    """
+    git slatex clone --help
     """
     set_log_level(verbose)
     # TODO : robust parse regexp
@@ -1111,21 +1082,16 @@ def _push(
 
 
 @cli.command()
-@click.option("--force", is_flag=True, help="Force push", default=False)
-@_GIT_BRANCH_OPTION
-@click.option("--force", is_flag=True, help="Force push")
-@authentication_options
-@log_options
 @handle_exception(RepoNotCleanError)
 def push(
-    force: bool,
-    auth_type: str,
-    username: Optional[str],
-    password: Optional[str],
-    save_password: Optional[bool],
-    ignore_saved_user_info: bool,
-    verbose: int,
-    git_branch: str,
+    force: bool = typer.Option(False, is_flag=True, help="Force push"),
+    auth_type: str = _AUTH_TYPE_OPTION,
+    username: Optional[str] = _USERNAME_OPTION,
+    password: Optional[str] = _PASSWORD_OPTION,
+    save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
+    ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
+    verbose: int = _VERBOSE_OPTION,
+    git_branch: str = _GIT_BRANCH_OPTION,
 ) -> None:
     """Synchronize the local copy with the remote version.
 
@@ -1150,43 +1116,25 @@ def push(
 
 
 @cli.command()
-@click.argument("projectname")
-@click.argument("base_url")
-@click.option(
-    "--https-cert-check/--no-https-cert-check",
-    default=True,
-    help="""force to check https certificate or not""",
-)
-@click.option(
-    "--whole-project-upload/--no-whole-project-upload",
-    default=True,
-    help="""upload whole project in a zip file to the server/ or
-upload sequentially file by file to the server""",
-)
-@click.option(
-    "--rate-max-uploads-by-sec",
-    default=0.0,
-    help="""number of max uploads
- by seconds to the server (some servers limit the this rate),
- useful with --no-whole-project-upload""",
-)
-@_GIT_BRANCH_OPTION
-@authentication_options
-@log_options
 @handle_exception(RepoNotCleanError)
 def new(
-    projectname: str,
-    base_url: str,
-    https_cert_check: bool,
-    whole_project_upload: bool,
-    rate_max_uploads_by_sec: float,
-    auth_type: str,
-    username: Optional[str],
-    password: Optional[str],
-    save_password: Optional[bool],
-    ignore_saved_user_info: bool,
-    verbose: int,
-    git_branch: str,
+    projectname: str = typer.Argument(None),
+    base_url: str = typer.Argument(None),
+    https_cert_check: bool = _HTTPS_CERT_CHECK_OPTION,
+    whole_project_upload: bool = _WHOLE_PROJECT_OPTION,
+    rate_max_uploads_by_sec: float = typer.Option(
+        0.0,
+        "--rate-max-uploads-by-sec",
+        help="""number of max uploads
+ by seconds to the server (some servers limit the this rate),
+ useful with --no-whole-project-upload""",
+    ),
+    git_branch: str = _GIT_BRANCH_OPTION,
+    auth_type: str = _AUTH_TYPE_OPTION,
+    username: Optional[str] = _USERNAME_OPTION,
+    password: Optional[str] = _PASSWORD_OPTION,
+    save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
+    verbose: int = _VERBOSE_OPTION,
 ) -> None:
     """
     Upload the current directory as a new sharelatex project.
