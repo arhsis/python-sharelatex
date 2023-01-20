@@ -7,6 +7,7 @@ import time
 import urllib.parse
 import uuid
 import zipfile
+from enum import Enum
 from pathlib import Path
 from typing import (
     Any,
@@ -542,22 +543,26 @@ class GitlabAuthenticator(DefaultAuthenticator):
         return login_data, {self.sid_name: _r.cookies[self.sid_name]}
 
 
-AUTH_DICT = {
-    "gitlab": GitlabAuthenticator,
-    "community": CommunityAuthenticator,
-    "legacy": LegacyAuthenticator,
-}
-
-
-def get_authenticator_class(auth_type: str) -> Type[Authenticator]:
+class AuthTypes(Enum):
     """
-    Return the authenticator.
+    Auth types.
     """
-    auth_type = auth_type.lower()
-    try:
-        return AUTH_DICT[auth_type]
-    except KeyError:
-        raise ValueError(f"auth_type must be in found {list(AUTH_DICT.keys())}")
+
+    GITLAB = "gitlab"
+    COMMUNITY = "community"
+    LEGACY = "legacy"
+
+    def get_authenticator_class(self) -> Type[Authenticator]:
+        """
+        Return the authenticator.
+        """
+        if self == AuthTypes.GITLAB:
+            return GitlabAuthenticator
+        elif self == AuthTypes.LEGACY:
+            return LegacyAuthenticator
+        elif self == AuthTypes.COMMUNITY:
+            return CommunityAuthenticator
+        raise ValueError(f"Unknown authentication type! {self}")
 
 
 class SyncClient:
