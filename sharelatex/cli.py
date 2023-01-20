@@ -564,8 +564,8 @@ def handle_exception(*exceptions: Type[SharelatexError]) -> Callable:
 @cli.command()
 def test(
     verbose: int = _VERBOSE_OPTION,
-    silent: bool = _SILENT_OPTION,
-    debug: bool = _DEBUG_OPTION,
+    _1: bool = _SILENT_OPTION,
+    _2: bool = _DEBUG_OPTION,
 ) -> None:
     """
     test log levels
@@ -808,8 +808,8 @@ def compile(
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
     ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
     verbose: int = _VERBOSE_OPTION,
-    silent: bool = _SILENT_OPTION,
-    debug: bool = _DEBUG_OPTION,
+    _1: bool = _SILENT_OPTION,
+    _2: bool = _DEBUG_OPTION,
 ) -> None:
     """
     Compile the remote version of a project
@@ -854,8 +854,8 @@ def pull(
     ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
     git_branch: str = _GIT_BRANCH_OPTION,
     verbose: int = _VERBOSE_OPTION,
-    silent: bool = _SILENT_OPTION,
-    debug: bool = _DEBUG_OPTION,
+    _1: bool = _SILENT_OPTION,
+    _2: bool = _DEBUG_OPTION,
 ) -> None:
     """
     See git slatex pull --help
@@ -895,8 +895,8 @@ def share(
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
     ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
     verbose: int = _VERBOSE_OPTION,
-    silent: bool = _SILENT_OPTION,
-    debug: bool = _DEBUG_OPTION,
+    _1: bool = _SILENT_OPTION,
+    _2: bool = _DEBUG_OPTION,
 ) -> None:
     """
     Send an invitation to share (edit/view) a project
@@ -952,8 +952,8 @@ def clone(
     https_cert_check: bool = _HTTPS_CERT_CHECK_OPTION,
     git_branch: str = _GIT_BRANCH_OPTION,
     verbose: int = _VERBOSE_OPTION,
-    silent: bool = _SILENT_OPTION,
-    debug: bool = _DEBUG_OPTION,
+    _1: bool = _SILENT_OPTION,
+    _2: bool = _DEBUG_OPTION,
 ) -> None:
     """
     git slatex clone --help
@@ -1125,8 +1125,8 @@ def push(
     ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
     git_branch: str = _GIT_BRANCH_OPTION,
     verbose: int = _VERBOSE_OPTION,
-    silent: bool = _SILENT_OPTION,
-    debug: bool = _DEBUG_OPTION,
+    _1: bool = _SILENT_OPTION,
+    _2: bool = _DEBUG_OPTION,
 ) -> None:
     """Synchronize the local copy with the remote version.
 
@@ -1172,8 +1172,8 @@ def new(
     password: Optional[str] = _PASSWORD_OPTION,
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
     verbose: int = _VERBOSE_OPTION,
-    silent: bool = _SILENT_OPTION,
-    debug: bool = _DEBUG_OPTION,
+    _1: bool = _SILENT_OPTION,
+    _2: bool = _DEBUG_OPTION,
 ) -> None:
     """
     Upload the current directory as a new sharelatex project.
