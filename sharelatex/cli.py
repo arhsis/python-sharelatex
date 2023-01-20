@@ -23,10 +23,10 @@ from zipfile import ZipFile
 
 import dateutil.parser
 import keyring
-import typer
 from git import Repo
 from git.config import cp
 
+import typer
 from sharelatex import (
     AuthTypes,
     ProjectData,
@@ -36,6 +36,7 @@ from sharelatex import (
     walk_folders,
     walk_project_data,
 )
+from sharelatex.__version__ import __version__
 
 try:
     from typing import TypedDict
@@ -43,6 +44,30 @@ except ImportError:
     from typing_extensions import TypedDict  # type: ignore
 
 cli = typer.Typer()
+
+
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(f"python-sharelatex {__version__}")
+        raise typer.Exit()
+
+
+@cli.callback()
+def _call_back(
+    _: bool = typer.Option(
+        None,
+        "--version",
+        is_flag=True,
+        callback=_version_callback,
+        expose_value=False,
+        is_eager=True,
+        help="Version",
+    )
+) -> None:
+    """
+    Python client for sharelatex and a tool to manage a project between git and the web UI.
+    """
+
 
 URL_MALFORMED_ERROR_MESSAGE = "projet_url is not well formed or missing"
 
