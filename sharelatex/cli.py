@@ -533,7 +533,7 @@ def getClient(
     password: str,
     verify: bool,
     save_password: Optional[bool] = None,
-    login_path: Optional[str] = None,
+    login_path: str = "/login",
     username_tag: str = "email",
 ) -> SyncClient:
     logger.info(f"try to open session on {base_url} with {username}")
@@ -1246,6 +1246,8 @@ def new(
     username: Optional[str] = _USERNAME_OPTION,
     password: Optional[str] = _PASSWORD_OPTION,
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
+    login_username_tag: str = _LOGIN_USERNAME_TAG_OPTION,
+    login_path: str = _LOGIN_PATH_OPTION,
     verbose: int = _VERBOSE_OPTION,
     _1: bool = _SILENT_OPTION,
     _2: bool = _DEBUG_OPTION,
@@ -1270,6 +1272,8 @@ def new(
         password,
         https_cert_check,
         save_password,
+        login_path=login_path,
+        username_tag=login_username_tag,
     )
 
     iter_file = repo.tree().traverse()

@@ -416,7 +416,6 @@ class LegacyAuthenticator(DefaultAuthenticator):
         login_path: str = "/login",
         sid_name: str = "sharelatex.sid",
         username_tag: str = "email",
-
     ) -> Tuple[Mapping[str, Any], Mapping[str, Any]]:
         """
         Authenticate.
@@ -432,8 +431,8 @@ class LegacyAuthenticator(DefaultAuthenticator):
         r = self.session.get(self.login_url, verify=self.verify)
         self.csrf = get_csrf_Token(r.text)
         self.login_data = {
-            "password"  : self.password,
-            "_csrf"     : self.csrf,
+            "password": self.password,
+            "_csrf": self.csrf,
             username_tag: self.username,
         }
 
@@ -591,7 +590,7 @@ class AuthTypes(Enum):
         raise ValueError(f"Unknown authentication type! {s}")
 
 
-class SyncClient(object):
+class SyncClient:
     """
     Sync client
     """
@@ -604,7 +603,7 @@ class SyncClient(object):
         password: str = "",
         verify: bool = True,
         authenticator: Optional[Authenticator] = None,
-        login_path: Optional[str] = None,
+        login_path: str = "/login",
         username_tag: str = "email",
     ) -> None:
         """Creates the client.
@@ -640,7 +639,7 @@ class SyncClient(object):
         )
 
         # set the session to use for authentication
-        authenticator.session = self.client
+        self.authenticator.session = self.client
 
         expire_time = 0  # seconds
         update_need = False
@@ -664,7 +663,7 @@ class SyncClient(object):
         else:
             update_need = True
         if update_need:
-            self.login_data, self.cookie = authenticator.authenticate(
+            self.login_data, self.cookie = self.authenticator.authenticate(
                 base_url=self.base_url,
                 username=username,
                 password=password,
@@ -774,15 +773,15 @@ class SyncClient(object):
         if verb == "POST" and isinstance(self.authenticator, LegacyAuthenticator):
             # PS: The upload to sharelatex.tum.de only works with a fresh CSRF token.
             r = self.client.get(
-                    urllib.parse.urljoin(self.base_url, self.login_path), verify=self.verify
+                urllib.parse.urljoin(self.base_url, self.login_path), verify=self.verify
             )
             current_csrf_token = get_csrf_Token(r.text)
             if (
-                    kwargs is not None
-                    and hasattr(kwargs, "keys")  # noqa: W503
-                    and "params" in kwargs.keys()  # noqa: W503
-                    and hasattr(kwargs["params"], "keys")  # noqa: W503
-                    and "_csrf" in kwargs["params"].keys()  # noqa: W503
+                kwargs is not None
+                and hasattr(kwargs, "keys")  # noqa: W503
+                and "params" in kwargs.keys()  # noqa: W503
+                and hasattr(kwargs["params"], "keys")  # noqa: W503
+                and "_csrf" in kwargs["params"].keys()  # noqa: W503
             ):
                 kwargs["params"]["_csrf"] = current_csrf_token
             else:
@@ -1190,7 +1189,7 @@ class SyncClient(object):
         files = {"qqfile": (filename, open(path, "rb"), mime)}
         params = {
             "_csrf": self.login_data["_csrf"],
-            "qquid": str(uuid.uuid4()),
+            "qquuid": str(uuid.uuid4()),
             "qqfilename": filename,
             "qqtotalfilesize": os.path.getsize(path),
         }
@@ -1326,6 +1325,7 @@ class SyncClient(object):
 
         Args:
             project_id (str): The project id of the project to delete
+            forever (bool): Forever.
         """
         url = f"{self.base_url}/project/{project_id}"
         data = {"_csrf": self.login_data["_csrf"]}
