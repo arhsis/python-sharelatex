@@ -5,6 +5,7 @@ import os
 import sys
 import tempfile
 import time
+import typing
 from functools import wraps
 from pathlib import Path
 from typing import (
@@ -648,12 +649,21 @@ def _get_datetime_from_git(
     repo: Repo, branch: str, files: Sequence[Path], working_path: Path
 ) -> Mapping[str, datetime.datetime]:
     datetimes_dict = {}
+    commits_already_checked: typing.MutableSet[str] = set()
     for p in files:
         commits = repo.iter_commits(branch)
         p_relative = p.relative_to(working_path)
         if not str(p_relative).startswith(".git"):
             if p not in datetimes_dict:
                 for c in commits:
+                    if c.hexsha in commits_already_checked:
+                        logger.debug(
+                            f"We have already checked the commit with the "
+                            f"SHA {c.hexsha}"
+                        )
+                        continue
+                    else:
+                        commits_already_checked.add(c.hexsha)
                     re = repo.git.show("--pretty=", "--name-only", c.hexsha)
                     if re != "":
                         commit_file_list = re.split("\n")
@@ -663,6 +673,7 @@ def _get_datetime_from_git(
                         if p in datetimes_dict:
                             break
     return datetimes_dict
+
 
 
 def _sync_remote_files(
@@ -902,6 +913,8 @@ def pull(
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
     ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
     git_branch: str = _GIT_BRANCH_OPTION,
+    login_username_tag: str = _LOGIN_USERNAME_TAG_OPTION,
+    login_path: str = _LOGIN_PATH_OPTION,
     verbose: int = _VERBOSE_OPTION,
     _1: bool = _SILENT_OPTION,
     _2: bool = _DEBUG_OPTION,
@@ -925,6 +938,8 @@ def pull(
         password,
         https_cert_check,
         save_password,
+        login_path=login_path,
+        username_tag=login_username_tag,
     )
     _pull(repo, client, project_id, git_branch=git_branch)
 

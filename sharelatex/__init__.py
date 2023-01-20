@@ -641,7 +641,7 @@ class SyncClient(object):
         # set the session to use for authentication
         authenticator.session = self.client
 
-        expire_time = 1000  # seconds
+        expire_time = 0  # seconds
         update_need = False
 
         cache_dir = Path(user_data_dir("python-sharelatex"))
