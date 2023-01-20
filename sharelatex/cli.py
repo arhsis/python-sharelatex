@@ -136,6 +136,86 @@ PROMPT_CONFIRM = "Do you want to save your password in your OS keyring system (y
 MAX_NUMBER_ATTEMPTS = 3
 
 
+_GIT_BRANCH_OPTION = typer.Option(
+    SYNC_BRANCH,
+    "--git-branch",
+    "-b",
+    help="The name of a branch. We will commit the changes from Sharelatex "
+    "on this branch.",
+)
+
+_VERBOSE_OPTION = typer.Option(
+    2,
+    "-v",
+    "--verbose",
+    count=True,
+    help="verbose level (can be: -v, -vv, -vvv)",
+    is_eager=True,
+)
+
+
+def _verbose_callback(
+    option_default_value: int,
+) -> Callable[[typer.Context, bool], bool]:
+    def _silent_callback(ctx: typer.Context, value: bool) -> bool:
+        if value:
+            ctx.params["verbose"] = option_default_value
+        return value
+
+    return _silent_callback
+
+
+_SILENT_OPTION = typer.Option(
+    False, "-s", "--silent", is_flag=True, callback=_verbose_callback(0)
+)
+_DEBUG_OPTION = typer.Option(
+    False, "--debug", "-d", is_flag=True, callback=_verbose_callback(3)
+)
+
+_AUTH_TYPE_OPTION = typer.Option(
+    None,
+    "--auth_type",
+    "-a",
+    help="""Authentication type.""",
+)
+_USERNAME_OPTION = typer.Option(
+    None,
+    "--username",
+    "-u",
+    help="""Username for sharelatex server account, if username is not provided,
+                                it will be asked online""",
+)
+
+_PASSWORD_OPTION = typer.Option(
+    None,
+    "--password",
+    "-p",
+    help="""User password for sharelatex server, if password is not provided,
+ it will be asked online""",
+)
+_SAVE_PASSWORD_OPTION = typer.Option(
+    None,
+    "--save-password/--no-save-password",
+    help="""Save user account information (in OS keyring system)""",
+)
+_IGNORE_SAVED_USER_INFO_OPTION = typer.Option(
+    False,
+    "--ignore-saved-user-info",
+    help="""Forget user account information already saved (in OS keyring system)""",
+)
+_HTTPS_CERT_CHECK_OPTION = typer.Option(
+    True,
+    "--https-cert-check/--no-https-cert-check",
+    help="""force to check https certificate or not""",
+)
+_WHOLE_PROJECT_OPTION = typer.Option(
+    True,
+    "--whole-project-download/--no-whole-project-download",
+    help="""Upload/download whole project in a zip file from the server/ or
+        Upload/download sequentially file by file from the server""",
+)
+
+
 class RateLimiter:
     """Ensure not overpass the max_rate events by seconds by sleep an amount
     of time if necessary"""
@@ -481,75 +561,6 @@ def handle_exception(*exceptions: Type[SharelatexError]) -> Callable:
     return wrapper
 
 
-_GIT_BRANCH_OPTION = typer.Option(
-    SYNC_BRANCH,
-    "--git-branch",
-    "-b",
-    help="The name of a branch. We will commit the changes from Sharelatex "
-    "on this branch.",
-)
-
-_VERBOSE_OPTION = typer.Option(
-    2,
-    "-v",
-    "--verbose",
-    count=True,
-    help="verbose level (can be: -v, -vv, -vvv)",
-    is_eager=True,
-)
-
-
-def _verbose_callback(
-    option_default_value: int,
-) -> Callable[[typer.Context, bool], bool]:
-    def _silent_callback(ctx: typer.Context, value: bool) -> bool:
-        if value:
-            ctx.params["verbose"] = option_default_value
-        return value
-
-    return _silent_callback
-
-
-_SILENT_OPTION = typer.Option(
-    False, "-s", "--silent", is_flag=True, callback=_verbose_callback(0)
-)
-_DEBUG_OPTION = typer.Option(
-    False, "--debug", "-d", is_flag=True, callback=_verbose_callback(3)
-)
-
-_AUTH_TYPE_OPTION = typer.Option(
-    None,
-    "--auth_type",
-    "-a",
-    help="""Authentication type.""",
-)
-_USERNAME_OPTION = typer.Option(
-    None,
-    "--username",
-    "-u",
-    help="""Username for sharelatex server account, if username is not provided,
-                                it will be asked online""",
-)
-
-_PASSWORD_OPTION = typer.Option(
-    None,
-    "--password",
-    "-p",
-    help="""User password for sharelatex server, if password is not provided,
- it will be asked online""",
-)
-_SAVE_PASSWORD_OPTION = typer.Option(
-    None,
-    "--save-password/--no-save-password",
-    help="""Save user account information (in OS keyring system)""",
-)
-_IGNORE_SAVED_USER_INFO_OPTION = typer.Option(
-    False,
-    "--ignore-saved-user-info",
-    help="""Forget user account information already saved (in OS keyring system)""",
-)
-
-
 @cli.command()
 def test(
     verbose: int = _VERBOSE_OPTION,
@@ -846,6 +857,9 @@ def pull(
     silent: bool = _SILENT_OPTION,
     debug: bool = _DEBUG_OPTION,
 ) -> None:
+    """
+    See git slatex pull --help
+    """
     set_log_level(verbose)
 
     # Fail if the repo is not clean
@@ -907,19 +921,6 @@ def share(
 
     response = client.share(project_id, email, can_edit)
     logger.debug(response)
-
-
-_HTTPS_CERT_CHECK_OPTION = typer.Option(
-    True,
-    "--https-cert-check/--no-https-cert-check",
-    help="""force to check https certificate or not""",
-)
-_WHOLE_PROJECT_OPTION = typer.Option(
-    True,
-    "--whole-project-download/--no-whole-project-download",
-    help="""Upload/download whole project in a zip file from the server/ or
-        Upload/download sequentially file by file from the server""",
-)
 
 
 @cli.command(
@@ -1159,9 +1160,11 @@ def new(
     rate_max_uploads_by_sec: float = typer.Option(
         0.0,
         "--rate-max-uploads-by-sec",
-        help="""number of max uploads
- by seconds to the server (some servers limit the this rate),
- useful with --no-whole-project-upload""",
+        help="""
+        number of max uploads
+        by seconds to the server (some servers limit the this rate),
+        useful with --no-whole-project-upload
+        """,
     ),
     git_branch: str = _GIT_BRANCH_OPTION,
     auth_type: AuthTypes = _AUTH_TYPE_OPTION,
