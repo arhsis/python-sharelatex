@@ -627,6 +627,7 @@ class SyncClient(object):
             raise Exception("project_url is not well formed or missing")
         self.base_url = base_url.rstrip("/")  # PS: the base URL should not end with /
         self.verify = verify
+        self.login_path = login_path
 
         # Used in _get, _post... to add common headers
         self.headers = {"user-agent": USER_AGENT}
@@ -770,6 +771,22 @@ class SyncClient(object):
         cookies = kwargs.get("cookies", {})
         cookies.update(self.cookie)
         kwargs["cookies"] = cookies
+        if verb == "POST" and isinstance(self.authenticator, LegacyAuthenticator):
+            # PS: The upload to sharelatex.tum.de only works with a fresh CSRF token.
+            r = self.client.get(
+                    urllib.parse.urljoin(self.base_url, self.login_path), verify=self.verify
+            )
+            current_csrf_token = get_csrf_Token(r.text)
+            if (
+                    kwargs is not None
+                    and hasattr(kwargs, "keys")  # noqa: W503
+                    and "params" in kwargs.keys()  # noqa: W503
+                    and hasattr(kwargs["params"], "keys")  # noqa: W503
+                    and "_csrf" in kwargs["params"].keys()  # noqa: W503
+            ):
+                kwargs["params"]["_csrf"] = current_csrf_token
+            else:
+                headers["X-CSRF-TOKEN"] = current_csrf_token
         r = self.client.request(verb, url, *args, **kwargs)
         r.raise_for_status()
         return r

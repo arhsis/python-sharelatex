@@ -675,7 +675,6 @@ def _get_datetime_from_git(
     return datetimes_dict
 
 
-
 def _sync_remote_files(
     client: SyncClient,
     project_id: str,
@@ -1094,6 +1093,8 @@ def _push(
     save_password: Optional[bool],
     ignore_saved_user_info: bool,
     verbose: int,
+    login_username_tag: str,
+    login_path: str,
     git_branch: str,
 ) -> None:
     set_log_level(verbose)
@@ -1129,6 +1130,8 @@ def _push(
         password,
         https_cert_check,
         save_password,
+        login_path=login_path,
+        username_tag=login_username_tag,
     )
 
     if not force:
@@ -1193,6 +1196,8 @@ def push(
     ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
     git_branch: str = _GIT_BRANCH_OPTION,
     verbose: int = _VERBOSE_OPTION,
+    login_username_tag: str = _LOGIN_USERNAME_TAG_OPTION,
+    login_path: str = _LOGIN_PATH_OPTION,
     _1: bool = _SILENT_OPTION,
     _2: bool = _DEBUG_OPTION,
 ) -> None:
@@ -1214,6 +1219,8 @@ def push(
         save_password,
         ignore_saved_user_info,
         verbose,
+        login_username_tag=login_username_tag,
+        login_path=login_path,
         git_branch=git_branch,
     )
 
