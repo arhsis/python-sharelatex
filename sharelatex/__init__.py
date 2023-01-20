@@ -564,13 +564,16 @@ class AuthTypes(Enum):
             return CommunityAuthenticator
         raise ValueError(f"Unknown authentication type! {self}")
 
+    def __str__(self) -> str:
+        return self.value
+
     @staticmethod
     def from_str(s: str) -> "AuthTypes":
         """
         Return a authentication type from the string form.
         """
         for current in [AuthTypes.GITLAB, AuthTypes.LEGACY, AuthTypes.COMMUNITY]:
-            if current.name == s:
+            if current.value == s:
                 return current
         raise ValueError(f"Unknown authentication type! {s}")
 
