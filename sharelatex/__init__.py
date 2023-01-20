@@ -329,6 +329,7 @@ class Authenticator:
         verify: bool = True,
         login_path: str = "/login",
         sid_name: str = "sharelatex.sid",
+        username_tag: str = "email",
     ) -> Tuple[Mapping[str, Any], Mapping[str, Any]]:
         """Authenticate.
 
@@ -366,7 +367,11 @@ class DefaultAuthenticator(Authenticator):
         verify: bool = True,
         login_path: str = "/login",
         sid_name: str = "sharelatex.sid",
+        username_tag: str = "email",
     ) -> Tuple[Mapping[str, Any], Mapping[str, Any]]:
+        if login_path is None:
+            login_path = "/login"
+
         self.login_url = urllib.parse.urljoin(base_url, login_path)
         self.username = username
         self.password = password
@@ -410,10 +415,14 @@ class LegacyAuthenticator(DefaultAuthenticator):
         verify: bool = True,
         login_path: str = "/login",
         sid_name: str = "sharelatex.sid",
+        username_tag: str = "email",
+
     ) -> Tuple[Mapping[str, Any], Mapping[str, Any]]:
         """
         Authenticate.
         """
+        if login_path is None:
+            login_path = "/login"
         self.login_url = urllib.parse.urljoin(base_url, login_path)
         self.username = username
         self.password = password
@@ -422,11 +431,12 @@ class LegacyAuthenticator(DefaultAuthenticator):
 
         r = self.session.get(self.login_url, verify=self.verify)
         self.csrf = get_csrf_Token(r.text)
-        self.login_data = dict(
-            email=self.username,
-            password=self.password,
-            _csrf=self.csrf,
-        )
+        self.login_data = {
+            "password"  : self.password,
+            "_csrf"     : self.csrf,
+            username_tag: self.username,
+        }
+
         logger.debug("try login")
         _r = self.session.post(self.login_url, data=self.login_data, verify=self.verify)
         _r.raise_for_status()
@@ -475,10 +485,13 @@ class GitlabAuthenticator(DefaultAuthenticator):
         verify: bool = True,
         login_path: str = "/auth/callback/gitlab",
         sid_name: str = "sharelatex.sid",
+        username_tag: str = "email",
     ) -> Tuple[Mapping[str, Any], Mapping[str, Any]]:
         """
         Authenticate.
         """
+        if login_path is None:
+            login_path = "/auth/callback/gitlab"
         self.login_url = urllib.parse.urljoin(base_url, login_path)
         self.username = username
         self.password = password
@@ -578,7 +591,7 @@ class AuthTypes(Enum):
         raise ValueError(f"Unknown authentication type! {s}")
 
 
-class SyncClient:
+class SyncClient(object):
     """
     Sync client
     """
@@ -591,6 +604,8 @@ class SyncClient:
         password: str = "",
         verify: bool = True,
         authenticator: Optional[Authenticator] = None,
+        login_path: Optional[str] = None,
+        username_tag: str = "email",
     ) -> None:
         """Creates the client.
 
@@ -603,11 +618,14 @@ class SyncClient:
             password (str): Password of the user
             verify (bool): True iff SSL certificates must be verified
             authenticator: Authenticator to use
-
+            login_path (str): If the login is not at /login, you can pass a
+            different path here.
+            username_tag (str): If the service expects not 'email', but e.g.,
+            'login', you can pass this tag name here.
         """
         if base_url == "":
             raise Exception("project_url is not well formed or missing")
-        self.base_url = base_url
+        self.base_url = base_url.rstrip("/")  # PS: the base URL should not end with /
         self.verify = verify
 
         # Used in _get, _post... to add common headers
@@ -616,10 +634,9 @@ class SyncClient:
         # build the client and login
         self.client = requests.session()
         self.client.verify = verify
-        if authenticator is None:
-            # build a default authenticator based on the
-            # given credentials
-            authenticator = DefaultAuthenticator()
+        self.authenticator = (
+            authenticator if authenticator is not None else DefaultAuthenticator()
+        )
 
         # set the session to use for authentication
         authenticator.session = self.client
@@ -651,6 +668,8 @@ class SyncClient:
                 username=username,
                 password=password,
                 verify=self.verify,
+                login_path=login_path,
+                username_tag=username_tag,
             )
             data_time = time.time()
             data[k] = ((self.login_data, self.cookie), data_time)

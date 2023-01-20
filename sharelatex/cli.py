@@ -25,7 +25,6 @@ import dateutil.parser
 import keyring
 from git import Repo
 from git.config import cp
-from typer import Argument, Context, Exit, Option, Typer, echo
 
 from sharelatex import (
     AuthTypes,
@@ -37,6 +36,7 @@ from sharelatex import (
     walk_project_data,
 )
 from sharelatex.__version__ import __version__
+from typer import Argument, Context, Exit, Option, Typer, echo
 
 try:
     from typing import TypedDict
@@ -239,6 +239,24 @@ _WHOLE_PROJECT_OPTION = Option(
     "--whole-project-download/--no-whole-project-download",
     help="""Upload/download whole project in a zip file from the server/ or
         Upload/download sequentially file by file from the server""",
+)
+_LOGIN_USERNAME_TAG_OPTION = Option(
+    "email",
+    "--login-username-tag",
+    help="""
+    Most services expect email=..., password=....
+    However, some expect login=...,password. Thus, you can pass this other
+    tag via this option.
+    """,
+)
+_LOGIN_PATH_OPTION = Option(
+    "/login",
+    "--login-path",
+    "-l",
+    help="""
+    Only useful with the legacy authentication. You can pass
+    here the login path, e.g., ldap/login.
+    """,
 )
 
 
@@ -514,6 +532,8 @@ def getClient(
     password: str,
     verify: bool,
     save_password: Optional[bool] = None,
+    login_path: Optional[str] = None,
+    username_tag: str = "email",
 ) -> SyncClient:
     logger.info(f"try to open session on {base_url} with {username}")
     client = None
@@ -527,7 +547,10 @@ def getClient(
                 password=password,
                 verify=verify,
                 authenticator=authenticator,
+                login_path=login_path,
+                username_tag=username_tag,
             )
+            break
         except Exception as inst:
             client = None
             logger.warning(f"{inst}  : attempt # {i + 1} ")
@@ -977,6 +1000,8 @@ def clone(
     whole_project_download: bool = _WHOLE_PROJECT_OPTION,
     https_cert_check: bool = _HTTPS_CERT_CHECK_OPTION,
     git_branch: str = _GIT_BRANCH_OPTION,
+    login_username_tag: str = _LOGIN_USERNAME_TAG_OPTION,
+    login_path: str = _LOGIN_PATH_OPTION,
     verbose: int = _VERBOSE_OPTION,
     _1: bool = _SILENT_OPTION,
     _2: bool = _DEBUG_OPTION,
@@ -1016,6 +1041,8 @@ def clone(
             password,
             https_cert_check,
             save_password,
+            login_path=login_path,
+            username_tag=login_username_tag,
         )
     except Exception as inst:
         import shutil
