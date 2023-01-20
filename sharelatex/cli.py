@@ -21,7 +21,6 @@ from typing import (
 )
 from zipfile import ZipFile
 
-import click
 import dateutil.parser
 import keyring
 from git import Repo
@@ -486,7 +485,7 @@ _GIT_BRANCH_OPTION = typer.Option(
     "--git-branch",
     "-b",
     help=f"The name of a branch. We will commit the changes from Sharelatex "
-    f"on this branch.\n\n Default: {SYNC_BRANCH}",
+    f"on this branch.",
 )
 
 _VERBOSE_OPTION = typer.Option(
@@ -495,9 +494,27 @@ _VERBOSE_OPTION = typer.Option(
     "--verbose",
     count=True,
     help="verbose level (can be: -v, -vv, -vvv)",
+    is_eager=True,
 )
-_SILENT_OPTION = typer.Option("-s", "--silent", "verbose", flag_value=0)
-_DEBUG_OPTION = typer.Option("--debug", "-d", "verbose", flag_value=3)
+
+
+def _verbose_callback(
+    option_default_value: int,
+) -> Callable[[typer.Context, bool], bool]:
+    def _silent_callback(ctx: typer.Context, value: bool) -> bool:
+        if value:
+            ctx.params["verbose"] = option_default_value
+        return value
+
+    return _silent_callback
+
+
+_SILENT_OPTION = typer.Option(
+    False, "-s", "--silent", is_flag=True, callback=_verbose_callback(0)
+)
+_DEBUG_OPTION = typer.Option(
+    False, "--debug", "-d", is_flag=True, callback=_verbose_callback(3)
+)
 
 _AUTH_TYPE_OPTION = typer.Option(
     None,
@@ -532,8 +549,15 @@ _IGNORE_SAVED_USER_INFO_OPTION = typer.Option(
 )
 
 
-@cli.command(help="test log levels")
-def test(verbose: int = _VERBOSE_OPTION) -> None:
+@cli.command()
+def test(
+    verbose: int = _VERBOSE_OPTION,
+    silent: bool = _SILENT_OPTION,
+    debug: bool = _DEBUG_OPTION,
+) -> None:
+    """
+    test log levels
+    """
     set_log_level(verbose)
     logger.debug("debug")
     logger.info("info")
@@ -772,6 +796,8 @@ def compile(
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
     ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
     verbose: int = _VERBOSE_OPTION,
+    silent: bool = _SILENT_OPTION,
+    debug: bool = _DEBUG_OPTION,
 ) -> None:
     """
     Compile the remote version of a project
@@ -796,6 +822,49 @@ def compile(
     logger.debug(response)
 
 
+@cli.command(
+    help=f"""Pull the files from sharelatex.
+
+    In the current repository, it works as follows:
+
+    1. Pull in the latest version of the remote project in ``{SYNC_BRANCH}``
+    respectively the given branch.\n
+    2. Attempt a merge in the working branch. If the merge can't be done automatically,
+       you will be required to fix the conflict manually
+    """
+)
+@handle_exception(RepoNotCleanError)
+def pull(
+    auth_type: AuthTypes = _AUTH_TYPE_OPTION,
+    username: Optional[str] = _USERNAME_OPTION,
+    password: Optional[str] = _PASSWORD_OPTION,
+    save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
+    ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
+    git_branch: str = _GIT_BRANCH_OPTION,
+    verbose: int = _VERBOSE_OPTION,
+    silent: bool = _SILENT_OPTION,
+    debug: bool = _DEBUG_OPTION,
+) -> None:
+    set_log_level(verbose)
+
+    # Fail if the repo is not clean
+    repo = get_clean_repo()
+    base_url, project_id, https_cert_check = refresh_project_information(repo)
+    auth_type, username, password = refresh_account_information(
+        repo, auth_type, username, password, save_password, ignore_saved_user_info
+    )
+    client = getClient(
+        repo,
+        base_url,
+        auth_type,
+        username,
+        password,
+        https_cert_check,
+        save_password,
+    )
+    _pull(repo, client, project_id, git_branch=git_branch)
+
+
 @cli.command()
 def share(
     project_id: str = typer.Option(None, "--project_id"),
@@ -805,13 +874,14 @@ def share(
         "--can-edit/--read-only",
         help="""Authorize user to edit the project or not""",
     ),
-    auth_type: str = _AUTH_TYPE_OPTION,
     auth_type: AuthTypes = _AUTH_TYPE_OPTION,
     username: Optional[str] = _USERNAME_OPTION,
     password: Optional[str] = _PASSWORD_OPTION,
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
     ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
     verbose: int = _VERBOSE_OPTION,
+    silent: bool = _SILENT_OPTION,
+    debug: bool = _DEBUG_OPTION,
 ) -> None:
     """
     Send an invitation to share (edit/view) a project
@@ -836,48 +906,6 @@ def share(
 
     response = client.share(project_id, email, can_edit)
     logger.debug(response)
-
-
-@cli.command(
-    help=f"""Pull the files from sharelatex.
-
-    In the current repository, it works as follows:
-
-    1. Pull in the latest version of the remote project in ``{SYNC_BRANCH}``
-    respectively the given branch.\n
-    2. Attempt a merge in the working branch. If the merge can't be done automatically,
-       you will be required to fix the conflict manually
-    """
-)
-@handle_exception(RepoNotCleanError)
-def pull(
-    ),
-    auth_type: AuthTypes = _AUTH_TYPE_OPTION,
-    username: Optional[str] = _USERNAME_OPTION,
-    password: Optional[str] = _PASSWORD_OPTION,
-    save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
-    ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
-    verbose: int = _VERBOSE_OPTION,
-    git_branch: str = _GIT_BRANCH_OPTION,
-) -> None:
-    set_log_level(verbose)
-
-    # Fail if the repo is not clean
-    repo = get_clean_repo()
-    base_url, project_id, https_cert_check = refresh_project_information(repo)
-    auth_type, username, password = refresh_account_information(
-        repo, auth_type, username, password, save_password, ignore_saved_user_info
-    )
-    client = getClient(
-        repo,
-        base_url,
-        auth_type,
-        username,
-        password,
-        https_cert_check,
-        save_password,
-    )
-    _pull(repo, client, project_id, git_branch=git_branch)
 
 
 _HTTPS_CERT_CHECK_OPTION = typer.Option(
@@ -922,6 +950,8 @@ def clone(
     https_cert_check: bool = _HTTPS_CERT_CHECK_OPTION,
     git_branch: str = _GIT_BRANCH_OPTION,
     verbose: int = _VERBOSE_OPTION,
+    silent: bool = _SILENT_OPTION,
+    debug: bool = _DEBUG_OPTION,
 ) -> None:
     """
     git slatex clone --help
@@ -1091,8 +1121,10 @@ def push(
     password: Optional[str] = _PASSWORD_OPTION,
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
     ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
-    verbose: int = _VERBOSE_OPTION,
     git_branch: str = _GIT_BRANCH_OPTION,
+    verbose: int = _VERBOSE_OPTION,
+    silent: bool = _SILENT_OPTION,
+    debug: bool = _DEBUG_OPTION,
 ) -> None:
     """Synchronize the local copy with the remote version.
 
@@ -1136,6 +1168,8 @@ def new(
     password: Optional[str] = _PASSWORD_OPTION,
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
     verbose: int = _VERBOSE_OPTION,
+    silent: bool = _SILENT_OPTION,
+    debug: bool = _DEBUG_OPTION,
 ) -> None:
     """
     Upload the current directory as a new sharelatex project.
