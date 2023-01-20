@@ -28,11 +28,10 @@ from git import Repo
 from git.config import cp
 
 from sharelatex import (
-    AUTH_DICT,
+    AuthTypes,
     ProjectData,
     SyncClient,
     UpdateDatum,
-    get_authenticator_class,
     set_logger,
     walk_folders,
     walk_project_data,
@@ -340,7 +339,7 @@ def refresh_project_information(
 
 def refresh_account_information(
     repo: Repo,
-    auth_type: str,
+    auth_type: AuthTypes,
     username: Optional[str] = None,
     password: Optional[str] = None,
     save_password: Optional[bool] = None,
@@ -404,7 +403,7 @@ def refresh_account_information(
 def getClient(
     repo: Repo,
     base_url: str,
-    auth_type: str,
+    auth_type: AuthTypes,
     username: str,
     password: str,
     verify: bool,
@@ -413,7 +412,7 @@ def getClient(
     logger.info(f"try to open session on {base_url} with {username}")
     client = None
 
-    authenticator = get_authenticator_class(auth_type)()
+    authenticator = auth_type.get_authenticator_class()()
     for i in range(MAX_NUMBER_ATTEMPTS):
         try:
             client = SyncClient(
@@ -767,7 +766,7 @@ def _pull(repo: Repo, client: SyncClient, project_id: str, git_branch: str) -> N
 @cli.command()
 def compile(
     project_id: str = typer.Argument(""),
-    auth_type: str = _AUTH_TYPE_OPTION,
+    auth_type: AuthTypes = _AUTH_TYPE_OPTION,
     username: Optional[str] = _USERNAME_OPTION,
     password: Optional[str] = _PASSWORD_OPTION,
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
@@ -807,6 +806,7 @@ def share(
         help="""Authorize user to edit the project or not""",
     ),
     auth_type: str = _AUTH_TYPE_OPTION,
+    auth_type: AuthTypes = _AUTH_TYPE_OPTION,
     username: Optional[str] = _USERNAME_OPTION,
     password: Optional[str] = _PASSWORD_OPTION,
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
@@ -851,7 +851,8 @@ def share(
 )
 @handle_exception(RepoNotCleanError)
 def pull(
-    auth_type: str = _AUTH_TYPE_OPTION,
+    ),
+    auth_type: AuthTypes = _AUTH_TYPE_OPTION,
     username: Optional[str] = _USERNAME_OPTION,
     password: Optional[str] = _PASSWORD_OPTION,
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
@@ -912,7 +913,7 @@ _WHOLE_PROJECT_OPTION = typer.Option(
 def clone(
     projet_url: str = typer.Argument(""),
     directory: str = typer.Argument("", file_okay=False),
-    auth_type: str = _AUTH_TYPE_OPTION,
+    auth_type: AuthTypes = _AUTH_TYPE_OPTION,
     username: Optional[str] = _USERNAME_OPTION,
     password: Optional[str] = _PASSWORD_OPTION,
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
@@ -987,7 +988,7 @@ def _upload(
 
 def _push(
     force: bool,
-    auth_type: str,
+    auth_type: AuthTypes,
     username: Optional[str],
     password: Optional[str],
     save_password: Optional[bool],
@@ -1085,7 +1086,7 @@ def _push(
 @handle_exception(RepoNotCleanError)
 def push(
     force: bool = typer.Option(False, is_flag=True, help="Force push"),
-    auth_type: str = _AUTH_TYPE_OPTION,
+    auth_type: AuthTypes = _AUTH_TYPE_OPTION,
     username: Optional[str] = _USERNAME_OPTION,
     password: Optional[str] = _PASSWORD_OPTION,
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
@@ -1130,7 +1131,7 @@ def new(
  useful with --no-whole-project-upload""",
     ),
     git_branch: str = _GIT_BRANCH_OPTION,
-    auth_type: str = _AUTH_TYPE_OPTION,
+    auth_type: AuthTypes = _AUTH_TYPE_OPTION,
     username: Optional[str] = _USERNAME_OPTION,
     password: Optional[str] = _PASSWORD_OPTION,
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
@@ -1193,3 +1194,7 @@ def new(
             logger.debug(f"delete failed project {project_id} into server ")
             client.delete(project_id, forever=True)
             raise inst
+
+
+if __name__ == "__main__":
+    cli()
