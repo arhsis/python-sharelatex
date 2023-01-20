@@ -11,9 +11,9 @@ from subprocess import check_call
 from typing import Any, Callable, Generator, Optional
 from typing import cast as typing_cast
 
-from click.testing import CliRunner
 from ddt import data, ddt, unpack
 from git import Repo
+from typer.testing import CliRunner
 
 from sharelatex import SyncClient, get_authenticator_class, walk_project_data
 from sharelatex.cli import (
