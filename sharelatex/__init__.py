@@ -22,13 +22,12 @@ from typing import (
 )
 from typing import cast as typing_cast
 
+import filetype
 import requests
 from appdirs import user_data_dir
 
 # try to find CAS form
 from lxml import html
-
-import filetype
 from socketIO_client import BaseNamespace, SocketIO
 
 from .__version__ import __version__

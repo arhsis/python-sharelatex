@@ -177,7 +177,7 @@ class Config:
         """
         get_password
         """
-        return self.keyring.get_password(service, username)
+        return cast(Optional[str], self.keyring.get_password(service, username))
 
     def set_password(self, service: str, username: str, password: str) -> None:
         """
@@ -485,8 +485,8 @@ _GIT_BRANCH_OPTION = typer.Option(
     SYNC_BRANCH,
     "--git-branch",
     "-b",
-    help=f"The name of a branch. We will commit the changes from Sharelatex "
-    f"on this branch.",
+    help="The name of a branch. We will commit the changes from Sharelatex "
+    "on this branch.",
 )
 
 _VERBOSE_OPTION = typer.Option(
@@ -917,8 +917,8 @@ _HTTPS_CERT_CHECK_OPTION = typer.Option(
 _WHOLE_PROJECT_OPTION = typer.Option(
     True,
     "--whole-project-download/--no-whole-project-download",
-    help="""Upload/download whole project in a zip file from the server/ or Upload/download
- sequentially file by file from the server""",
+    help="""Upload/download whole project in a zip file from the server/ or
+        Upload/download sequentially file by file from the server""",
 )
 
 

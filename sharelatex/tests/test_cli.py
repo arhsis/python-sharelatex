@@ -15,7 +15,7 @@ from ddt import data, ddt, unpack
 from git import Repo
 from typer.testing import CliRunner
 
-from sharelatex import SyncClient, get_authenticator_class, walk_project_data
+from sharelatex import AuthTypes, SyncClient, walk_project_data
 from sharelatex.cli import (
     MESSAGE_REPO_ISNT_CLEAN,
     SYNC_BRANCH,
@@ -142,7 +142,7 @@ def project(
     # First we create a client.
     # For testing purpose we disable SSL verification everywhere
     username, password = CREDS.get()
-    authenticator = get_authenticator_class(AUTH_TYPE)()
+    authenticator = AuthTypes.from_str(AUTH_TYPE).get_authenticator_class()()
     client = SyncClient(
         base_url=BASE_URL,
         username=username,
