@@ -26,6 +26,7 @@ import dateutil.parser
 import keyring
 from git import Repo
 from git.config import cp
+from typer import Argument, Context, Exit, Option, Typer, echo
 
 from sharelatex import (
     AuthTypes,
@@ -37,7 +38,6 @@ from sharelatex import (
     walk_project_data,
 )
 from sharelatex.__version__ import __version__
-from typer import Argument, Context, Exit, Option, Typer, echo
 
 try:
     from typing import TypedDict
@@ -866,16 +866,25 @@ def compile(
     password: Optional[str] = _PASSWORD_OPTION,
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
     ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
+    login_username_tag: str = _LOGIN_USERNAME_TAG_OPTION,
+    login_path: str = _LOGIN_PATH_OPTION,
+    skip_output_download: bool = Option(
+        False,
+        "--skip-output-download",
+        is_flag=True,
+        help="If this flag is set, we will not download the PDF after the compilation.",
+    ),
     verbose: int = _VERBOSE_OPTION,
     _1: bool = _SILENT_OPTION,
     _2: bool = _DEBUG_OPTION,
 ) -> None:
     """
-    Compile the remote version of a project
+    Compile the remote version of a project and, optionally, downloads the
+    resulting PDF.
     """
     set_log_level(verbose)
     repo = Repo()
-    base_url, project_id, https_cert_check = refresh_project_information(repo)
+    base_url, _, https_cert_check = refresh_project_information(repo)
     auth_type, username, password = refresh_account_information(
         repo, auth_type, username, password, save_password, ignore_saved_user_info
     )
@@ -887,10 +896,21 @@ def compile(
         password,
         https_cert_check,
         save_password,
+        login_path=login_path,
+        username_tag=login_username_tag,
     )
-
+    echo("Starting compilation process...")
     response = client.compile(project_id)
-    logger.debug(response)
+    echo("Compilation done!")
+    if skip_output_download:
+        echo("Skipped the download")
+    else:
+        echo("Starting the download process...")
+        pdf_file = next(p for p in response["outputFiles"] if p["path"].endswith("pdf"))
+        client.download_output_file(
+            pdf_file["url"], Path(repo.working_dir).joinpath(pdf_file["path"])
+        )
+        echo(f"Downloaded the pdf in {pdf_file['path']}")
 
 
 @cli.command(

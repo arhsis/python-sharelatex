@@ -641,7 +641,9 @@ class SyncClient:
         # set the session to use for authentication
         self.authenticator.session = self.client
 
-        expire_time = 0  # seconds
+        # TODO: PS if this number is higher, we get
+        # 403 errors for sharelatex.tum.de
+        expire_time = 30
         update_need = False
 
         cache_dir = Path(user_data_dir("python-sharelatex"))
@@ -1242,13 +1244,29 @@ class SyncClient:
         """
         url = f"{self.base_url}/project/{project_id}/compile"
 
-        data = {"_csrf": self.login_data["_csrf"]}
+        data = {
+            "draft": False,
+            "check": "silent",
+            "incrementalCompilesEnabled": True,
+            "stopOnFirstError": True,
+        }
         r = self._post(url, data=data, verify=self.verify)
         r.raise_for_status()
         response = r.json()
         if response["status"] != "success":
             raise CompilationError(response)
         return response
+
+    def download_output_file(self, remote_path: str, dest_path: Path) -> None:
+        """
+        Downloads an output file and stores it under `dest_path`.
+        """
+        url = self.base_url + remote_path
+        r = self._get(url, verify=self.verify)
+        r.raise_for_status()
+
+        with dest_path.open("wb") as f:
+            f.write(r.content)
 
     def update_project_settings(
         self, project_id: str, **settings: Any
