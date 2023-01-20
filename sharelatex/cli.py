@@ -25,8 +25,8 @@ import dateutil.parser
 import keyring
 from git import Repo
 from git.config import cp
+from typer import Argument, Context, Exit, Option, Typer, echo
 
-import typer
 from sharelatex import (
     AuthTypes,
     ProjectData,
@@ -43,18 +43,18 @@ try:
 except ImportError:
     from typing_extensions import TypedDict  # type: ignore
 
-cli = typer.Typer()
+cli = Typer()
 
 
 def _version_callback(value: bool) -> None:
     if value:
-        typer.echo(f"python-sharelatex {__version__}")
-        raise typer.Exit()
+        echo(f"python-sharelatex {__version__}")
+        raise Exit()
 
 
 @cli.callback()
 def _call_back(
-    _: bool = typer.Option(
+    _: bool = Option(
         None,
         "--version",
         is_flag=True,
@@ -65,7 +65,8 @@ def _call_back(
     )
 ) -> None:
     """
-    Python client for sharelatex and a tool to manage a project between git and the web UI.
+    Python client for sharelatex and a tool to manage a project between git
+    and the web UI.
     """
 
 
@@ -161,7 +162,7 @@ PROMPT_CONFIRM = "Do you want to save your password in your OS keyring system (y
 MAX_NUMBER_ATTEMPTS = 3
 
 
-_GIT_BRANCH_OPTION = typer.Option(
+_GIT_BRANCH_OPTION = Option(
     SYNC_BRANCH,
     "--git-branch",
     "-b",
@@ -169,7 +170,7 @@ _GIT_BRANCH_OPTION = typer.Option(
     "on this branch.",
 )
 
-_VERBOSE_OPTION = typer.Option(
+_VERBOSE_OPTION = Option(
     2,
     "-v",
     "--verbose",
@@ -181,8 +182,8 @@ _VERBOSE_OPTION = typer.Option(
 
 def _verbose_callback(
     option_default_value: int,
-) -> Callable[[typer.Context, bool], bool]:
-    def _silent_callback(ctx: typer.Context, value: bool) -> bool:
+) -> Callable[[Context, bool], bool]:
+    def _silent_callback(ctx: Context, value: bool) -> bool:
         if value:
             ctx.params["verbose"] = option_default_value
         return value
@@ -190,20 +191,20 @@ def _verbose_callback(
     return _silent_callback
 
 
-_SILENT_OPTION = typer.Option(
+_SILENT_OPTION = Option(
     False, "-s", "--silent", is_flag=True, callback=_verbose_callback(0)
 )
-_DEBUG_OPTION = typer.Option(
+_DEBUG_OPTION = Option(
     False, "--debug", "-d", is_flag=True, callback=_verbose_callback(3)
 )
 
-_AUTH_TYPE_OPTION = typer.Option(
+_AUTH_TYPE_OPTION = Option(
     None,
     "--auth_type",
     "-a",
     help="""Authentication type.""",
 )
-_USERNAME_OPTION = typer.Option(
+_USERNAME_OPTION = Option(
     None,
     "--username",
     "-u",
@@ -211,29 +212,29 @@ _USERNAME_OPTION = typer.Option(
                                 it will be asked online""",
 )
 
-_PASSWORD_OPTION = typer.Option(
+_PASSWORD_OPTION = Option(
     None,
     "--password",
     "-p",
     help="""User password for sharelatex server, if password is not provided,
  it will be asked online""",
 )
-_SAVE_PASSWORD_OPTION = typer.Option(
+_SAVE_PASSWORD_OPTION = Option(
     None,
     "--save-password/--no-save-password",
     help="""Save user account information (in OS keyring system)""",
 )
-_IGNORE_SAVED_USER_INFO_OPTION = typer.Option(
+_IGNORE_SAVED_USER_INFO_OPTION = Option(
     False,
     "--ignore-saved-user-info",
     help="""Forget user account information already saved (in OS keyring system)""",
 )
-_HTTPS_CERT_CHECK_OPTION = typer.Option(
+_HTTPS_CERT_CHECK_OPTION = Option(
     True,
     "--https-cert-check/--no-https-cert-check",
     help="""force to check https certificate or not""",
 )
-_WHOLE_PROJECT_OPTION = typer.Option(
+_WHOLE_PROJECT_OPTION = Option(
     True,
     "--whole-project-download/--no-whole-project-download",
     help="""Upload/download whole project in a zip file from the server/ or
@@ -826,7 +827,7 @@ def _pull(repo: Repo, client: SyncClient, project_id: str, git_branch: str) -> N
 
 @cli.command()
 def compile(
-    project_id: str = typer.Argument(""),
+    project_id: str = Argument(""),
     auth_type: AuthTypes = _AUTH_TYPE_OPTION,
     username: Optional[str] = _USERNAME_OPTION,
     password: Optional[str] = _PASSWORD_OPTION,
@@ -907,9 +908,9 @@ def pull(
 
 @cli.command()
 def share(
-    project_id: str = typer.Option(None, "--project_id"),
-    email: str = typer.Argument(""),
-    can_edit: bool = typer.Option(
+    project_id: str = Option(None, "--project_id"),
+    email: str = Argument(""),
+    can_edit: bool = Option(
         True,
         "--can-edit/--read-only",
         help="""Authorize user to edit the project or not""",
@@ -966,8 +967,8 @@ def share(
 )
 @handle_exception(RepoNotCleanError)
 def clone(
-    projet_url: str = typer.Argument(""),
-    directory: str = typer.Argument("", file_okay=False),
+    projet_url: str = Argument(""),
+    directory: str = Argument("", file_okay=False),
     auth_type: AuthTypes = _AUTH_TYPE_OPTION,
     username: Optional[str] = _USERNAME_OPTION,
     password: Optional[str] = _PASSWORD_OPTION,
@@ -1142,7 +1143,7 @@ def _push(
 @cli.command()
 @handle_exception(RepoNotCleanError)
 def push(
-    force: bool = typer.Option(False, is_flag=True, help="Force push"),
+    force: bool = Option(False, is_flag=True, help="Force push"),
     auth_type: AuthTypes = _AUTH_TYPE_OPTION,
     username: Optional[str] = _USERNAME_OPTION,
     password: Optional[str] = _PASSWORD_OPTION,
@@ -1178,11 +1179,11 @@ def push(
 @cli.command()
 @handle_exception(RepoNotCleanError)
 def new(
-    projectname: str = typer.Argument(None),
-    base_url: str = typer.Argument(None),
+    projectname: str = Argument(None),
+    base_url: str = Argument(None),
     https_cert_check: bool = _HTTPS_CERT_CHECK_OPTION,
     whole_project_upload: bool = _WHOLE_PROJECT_OPTION,
-    rate_max_uploads_by_sec: float = typer.Option(
+    rate_max_uploads_by_sec: float = Option(
         0.0,
         "--rate-max-uploads-by-sec",
         help="""
