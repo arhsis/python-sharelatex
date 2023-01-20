@@ -22,12 +22,13 @@ from typing import (
 )
 from typing import cast as typing_cast
 
-import filetype
 import requests
 from appdirs import user_data_dir
 
 # try to find CAS form
 from lxml import html
+
+import filetype
 from socketIO_client import BaseNamespace, SocketIO
 
 from .__version__ import __version__
@@ -113,7 +114,7 @@ class FolderRep(TypedDict):
     _id: str
     fileRefs: Sequence[str]
     docs: Sequence[str]
-    folders: Sequence["FolderRep"]
+    folders: Sequence[Any]
 
 
 def walk_project_data(
@@ -266,7 +267,7 @@ def check_login_error(response: requests.Response) -> None:
         t = message.get("type")
         if t is not None and t == "error":
             raise Exception(message.get("text", "Unknown error"))
-    except requests.exceptions.JSONDecodeError:
+    except requests.exceptions.JSONDecodeError:  # type: ignore
         # this might be a successful login here
         logger.info("no Login error message")
         pass
@@ -563,6 +564,16 @@ class AuthTypes(Enum):
         elif self == AuthTypes.COMMUNITY:
             return CommunityAuthenticator
         raise ValueError(f"Unknown authentication type! {self}")
+
+    @staticmethod
+    def from_str(s: str) -> "AuthTypes":
+        """
+        Return a authentication type from the string form.
+        """
+        for current in [AuthTypes.GITLAB, AuthTypes.LEGACY, AuthTypes.COMMUNITY]:
+            if current.name == s:
+                return current
+        raise ValueError(f"Unknown authentication type! {s}")
 
 
 class SyncClient:

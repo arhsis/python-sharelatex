@@ -23,6 +23,7 @@ from zipfile import ZipFile
 
 import dateutil.parser
 import keyring
+import typer
 from git import Repo
 from git.config import cp
 
@@ -35,7 +36,6 @@ from sharelatex import (
     walk_folders,
     walk_project_data,
 )
-import typer
 
 try:
     from typing import TypedDict
@@ -177,7 +177,7 @@ class Config:
         """
         get_password
         """
-        return cast(Optional[str], self.keyring.get_password(service, username))
+        return self.keyring.get_password(service, username)
 
     def set_password(self, service: str, username: str, password: str) -> None:
         """
@@ -343,7 +343,7 @@ def refresh_account_information(
     password: Optional[str] = None,
     save_password: Optional[bool] = None,
     ignore_saved_user_info: Optional[bool] = False,
-) -> Tuple[str, str, str]:
+) -> Tuple[AuthTypes, str, str]:
     """Get and/or set the account information in/from the git config.
 
     If the information is set in the config it is retrieved, otherwise it is set.
@@ -353,6 +353,7 @@ def refresh_account_information(
         repo (git.Repo): The repo object to read the config from
         username (str): The username to consider
         password (str): The password to consider
+        auth_type (AuthTypes): The authentication type.
         save_password (boolean): True for save user account information (in OS
                                  keyring system) if needed
         ignore_saved_user_info (boolean): True for ignore user account information (in
@@ -367,12 +368,12 @@ def refresh_account_information(
         if not ignore_saved_user_info:
             u = config.get_value(SLATEX_SECTION, "authType")
             if u:
-                auth_type = u
+                auth_type = AuthTypes.from_str(u)
     if auth_type is None:
         auth_type = input(PROMPT_AUTH_TYPE)
         if not auth_type:
             auth_type = DEFAULT_AUTH_TYPE
-    config.set_value(SLATEX_SECTION, "authType", auth_type)
+    config.set_value(SLATEX_SECTION, "authType", str(auth_type))
 
     if username is None:
         if not ignore_saved_user_info:
