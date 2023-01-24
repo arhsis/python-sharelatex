@@ -1,4 +1,3 @@
-import abc
 import datetime
 import getpass
 import logging
@@ -23,6 +22,7 @@ from typing import (
 from zipfile import ZipFile
 
 import dateutil.parser
+import keyring
 from git import Repo
 from git.config import cp
 from typer import Argument, Context, Exit, Option, Typer, echo
@@ -151,10 +151,6 @@ COMMIT_MESSAGES: AbstractSet[str] = frozenset(
 )
 
 MESSAGE_REPO_ISNT_CLEAN = "The repo isn't clean"
-MESSAGE_NO_KEYRING = (
-    "Keyring has been disabled, check your setup "
-    "(you'll be asked for your password everytime)"
-)
 
 PROMPT_BASE_URL = "Base url: "
 PROMPT_PROJECT_ID = "Project id: "
@@ -244,11 +240,6 @@ _WHOLE_PROJECT_OPTION = Option(
     help="""Upload/download whole project in a zip file from the server/ or
         Upload/download sequentially file by file from the server""",
 )
-_KEYRING_OPTION = Option(
-    True,
-    "--use-keyring/--no-use-keyring",
-    help="""Use / don't use the OS keyring system at all""",
-)
 
 
 class RateLimiter:
@@ -281,24 +272,11 @@ class RateLimiter:
         #     self.event_inc = self.event_inc_passthrough
 
 
-class CredentialsCache(abc.ABC):
-    @abc.abstractmethod
-    def get_password(self, service: str, username: str) -> Optional[str]:
-        ...
+class Config:
+    """Handle gitconfig read/write operations in a transparent way."""
 
-    @abc.abstractmethod
-    def set_password(self, service: str, username: str, password: str) -> None:
-        ...
-
-    @abc.abstractmethod
-    def delete_password(self, service: str, username: str) -> None:
-        ...
-
-
-class KeyringCredentialsCache(CredentialsCache):
-    def __init__(self) -> None:
-        import keyring
-
+    def __init__(self, repo: Repo):
+        self.repo = repo
         self.keyring = keyring.get_keyring()
 
     def get_password(self, service: str, username: str) -> Optional[str]:
@@ -308,6 +286,9 @@ class KeyringCredentialsCache(CredentialsCache):
         return cast(Optional[str], self.keyring.get_password(service, username))
 
     def set_password(self, service: str, username: str, password: str) -> None:
+        """
+        set_password
+        """
         self.keyring.set_password(service, username, password)
 
     def delete_password(self, service: str, username: str) -> None:
@@ -315,41 +296,6 @@ class KeyringCredentialsCache(CredentialsCache):
         delete_password
         """
         self.keyring.delete_password(service, username)
-
-
-class NoneCredentialsCache(CredentialsCache):
-    def get_password(self, service: str, username: str) -> Optional[str]:
-        return None
-
-    def set_password(self, service: str, username: str, password: str) -> None:
-        return None
-
-    def delete_password(self, service: str, username: str) -> None:
-        ...
-
-
-def make_credential_cache(use_keyring: bool) -> CredentialsCache:
-    if use_keyring:
-        return KeyringCredentialsCache()
-    else:
-        return NoneCredentialsCache()
-
-
-class Config:
-    """Handle gitconfig read/write operations in a transparent way."""
-
-    def __init__(self, repo: Repo, credentials_cache: CredentialsCache):
-        self.repo = repo
-        self.credentials_cache = credentials_cache
-
-    def get_password(self, service: str, username: str) -> Optional[str]:
-        return self.credentials_cache.get_password(service, username)
-
-    def set_password(self, service: str, username: str, password: str) -> None:
-        self.credentials_cache.set_password(service, username, password)
-
-    def delete_password(self, service: str, username: str) -> None:
-        self.credentials_cache.delete_password(service, username)
 
     def set_value(
         self,
@@ -447,7 +393,6 @@ def refresh_project_information(
     base_url: Optional[str] = None,
     project_id: Optional[str] = None,
     https_cert_check: Optional[bool] = None,
-    use_keyring: bool = True,
 ) -> Tuple[str, str, bool]:
     """Get and/or set the project information in/from the git config.
 
@@ -458,11 +403,10 @@ def refresh_project_information(
         base_url (str): the base_url to consider
         project_id (str): the project_id to consider
         https_cert_check (bool): Check the cert.
-        use_keyring (bool): TODO
     Returns:
         tuple (base_url, project_id) after the refresh occurs.
     """
-    config = Config(repo, make_credential_cache(use_keyring))
+    config = Config(repo)
     if base_url is None:
         u = config.get_value(SLATEX_SECTION, "baseUrl")
         if u is not None:
@@ -505,7 +449,6 @@ def refresh_account_information(
     password: Optional[str] = None,
     save_password: Optional[bool] = None,
     ignore_saved_user_info: Optional[bool] = False,
-    use_keyring: bool = True,
 ) -> Tuple[AuthTypes, str, str]:
     """Get and/or set the account information in/from the git config.
 
@@ -521,12 +464,11 @@ def refresh_account_information(
                                  keyring system) if needed
         ignore_saved_user_info (boolean): True for ignore user account information (in
                                  OS keyring system) if present
-        use_keyring (bool): TODO
     Returns:
         tuple (login_path, username, password) after the refresh occurs.
     """
 
-    config = Config(repo, make_credential_cache(use_keyring))
+    config = Config(repo)
     base_url = config.get_value(SLATEX_SECTION, "baseUrl")
     if auth_type is None:
         if not ignore_saved_user_info:
@@ -555,7 +497,7 @@ def refresh_account_information(
                 password = p
     if password is None:
         password = getpass.getpass(PROMPT_PASSWORD)
-        if save_password is None and use_keyring:
+        if save_password is None:
             r = input(PROMPT_CONFIRM)
             if r == "Y" or r == "y":
                 save_password = True
@@ -572,7 +514,6 @@ def getClient(
     password: str,
     verify: bool,
     save_password: Optional[bool] = None,
-    use_keyring: bool = True,
 ) -> SyncClient:
     logger.info(f"try to open session on {base_url} with {username}")
     client = None
@@ -595,7 +536,6 @@ def getClient(
                 auth_type,
                 save_password=save_password,
                 ignore_saved_user_info=True,
-                use_keyring=use_keyring,
             )
     if client is None:
         raise Exception("maximum number of authentication attempts is reached")
@@ -893,7 +833,6 @@ def compile(
     password: Optional[str] = _PASSWORD_OPTION,
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
     ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
-    use_keyring: bool = _KEYRING_OPTION,
     verbose: int = _VERBOSE_OPTION,
     _1: bool = _SILENT_OPTION,
     _2: bool = _DEBUG_OPTION,
@@ -903,17 +842,9 @@ def compile(
     """
     set_log_level(verbose)
     repo = Repo()
-    base_url, project_id, https_cert_check = refresh_project_information(
-        repo, use_keyring=use_keyring
-    )
+    base_url, project_id, https_cert_check = refresh_project_information(repo)
     auth_type, username, password = refresh_account_information(
-        repo,
-        auth_type,
-        username,
-        password,
-        save_password,
-        ignore_saved_user_info,
-        use_keyring=use_keyring,
+        repo, auth_type, username, password, save_password, ignore_saved_user_info
     )
     client = getClient(
         repo,
@@ -923,7 +854,6 @@ def compile(
         password,
         https_cert_check,
         save_password,
-        use_keyring=use_keyring,
     )
 
     response = client.compile(project_id)
@@ -949,7 +879,6 @@ def pull(
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
     ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
     git_branch: str = _GIT_BRANCH_OPTION,
-    use_keyring: bool = _KEYRING_OPTION,
     verbose: int = _VERBOSE_OPTION,
     _1: bool = _SILENT_OPTION,
     _2: bool = _DEBUG_OPTION,
@@ -961,17 +890,9 @@ def pull(
 
     # Fail if the repo is not clean
     repo = get_clean_repo()
-    base_url, project_id, https_cert_check = refresh_project_information(
-        repo, use_keyring=use_keyring
-    )
+    base_url, project_id, https_cert_check = refresh_project_information(repo)
     auth_type, username, password = refresh_account_information(
-        repo,
-        auth_type,
-        username,
-        password,
-        save_password,
-        ignore_saved_user_info,
-        use_keyring=use_keyring,
+        repo, auth_type, username, password, save_password, ignore_saved_user_info
     )
     client = getClient(
         repo,
@@ -981,7 +902,6 @@ def pull(
         password,
         https_cert_check,
         save_password,
-        use_keyring=use_keyring,
     )
     _pull(repo, client, project_id, git_branch=git_branch)
 
@@ -1000,7 +920,6 @@ def share(
     password: Optional[str] = _PASSWORD_OPTION,
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
     ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
-    use_keyring: bool = _KEYRING_OPTION,
     verbose: int = _VERBOSE_OPTION,
     _1: bool = _SILENT_OPTION,
     _2: bool = _DEBUG_OPTION,
@@ -1011,16 +930,10 @@ def share(
     set_log_level(verbose)
     repo = Repo()
     base_url, project_id, https_cert_check = refresh_project_information(
-        repo, project_id=project_id, use_keyring=use_keyring
+        repo, project_id=project_id
     )
     auth_type, username, password = refresh_account_information(
-        repo,
-        auth_type,
-        username,
-        password,
-        save_password,
-        ignore_saved_user_info,
-        use_keyring=use_keyring,
+        repo, auth_type, username, password, save_password, ignore_saved_user_info
     )
     client = getClient(
         repo,
@@ -1030,7 +943,6 @@ def share(
         password,
         https_cert_check,
         save_password,
-        use_keyring=use_keyring,
     )
 
     response = client.share(project_id, email, can_edit)
@@ -1065,7 +977,6 @@ def clone(
     whole_project_download: bool = _WHOLE_PROJECT_OPTION,
     https_cert_check: bool = _HTTPS_CERT_CHECK_OPTION,
     git_branch: str = _GIT_BRANCH_OPTION,
-    use_keyring: bool = _KEYRING_OPTION,
     verbose: int = _VERBOSE_OPTION,
     _1: bool = _SILENT_OPTION,
     _2: bool = _DEBUG_OPTION,
@@ -1090,16 +1001,10 @@ def clone(
     repo = get_clean_repo(path=directory_as_path)
 
     base_url, project_id, https_cert_check = refresh_project_information(
-        repo, base_url, project_id, https_cert_check, use_keyring=use_keyring
+        repo, base_url, project_id, https_cert_check
     )
     auth_type, username, password = refresh_account_information(
-        repo,
-        auth_type,
-        username,
-        password,
-        save_password,
-        ignore_saved_user_info,
-        use_keyring=use_keyring,
+        repo, auth_type, username, password, save_password, ignore_saved_user_info
     )
 
     try:
@@ -1111,7 +1016,6 @@ def clone(
             password,
             https_cert_check,
             save_password,
-            use_keyring=use_keyring,
         )
     except Exception as inst:
         import shutil
@@ -1147,7 +1051,6 @@ def _push(
     password: Optional[str],
     save_password: Optional[bool],
     ignore_saved_user_info: bool,
-    use_keyring: bool,
     verbose: int,
     git_branch: str,
 ) -> None:
@@ -1171,17 +1074,9 @@ def _push(
             c_client.delete_file(project_id, entity["_id"])
 
     repo = get_clean_repo()
-    base_url, project_id, https_cert_check = refresh_project_information(
-        repo, use_keyring=use_keyring
-    )
+    base_url, project_id, https_cert_check = refresh_project_information(repo)
     auth_type, username, password = refresh_account_information(
-        repo,
-        auth_type,
-        username,
-        password,
-        save_password,
-        ignore_saved_user_info,
-        use_keyring=use_keyring,
+        repo, auth_type, username, password, save_password, ignore_saved_user_info
     )
 
     client = getClient(
@@ -1192,12 +1087,11 @@ def _push(
         password,
         https_cert_check,
         save_password,
-        use_keyring=use_keyring,
     )
 
     if not force:
         _pull(repo, client, project_id, git_branch=git_branch)
-    config = Config(repo, make_credential_cache(use_keyring))
+    config = Config(repo)
     # prevent git returning quoted path in diff when file path has unicode char
     config.set_value("core", "quotepath", "off")
     master_commit = repo.commit("HEAD")
@@ -1256,7 +1150,6 @@ def push(
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
     ignore_saved_user_info: bool = _IGNORE_SAVED_USER_INFO_OPTION,
     git_branch: str = _GIT_BRANCH_OPTION,
-    use_keyring: bool = _KEYRING_OPTION,
     verbose: int = _VERBOSE_OPTION,
     _1: bool = _SILENT_OPTION,
     _2: bool = _DEBUG_OPTION,
@@ -1278,8 +1171,7 @@ def push(
         password,
         save_password,
         ignore_saved_user_info,
-        use_keyring=use_keyring,
-        verbose=verbose,
+        verbose,
         git_branch=git_branch,
     )
 
@@ -1305,7 +1197,6 @@ def new(
     username: Optional[str] = _USERNAME_OPTION,
     password: Optional[str] = _PASSWORD_OPTION,
     save_password: Optional[bool] = _SAVE_PASSWORD_OPTION,
-    use_keyring: bool = _KEYRING_OPTION,
     verbose: int = _VERBOSE_OPTION,
     _1: bool = _SILENT_OPTION,
     _2: bool = _DEBUG_OPTION,
@@ -1318,17 +1209,9 @@ def new(
     set_log_level(verbose)
     repo = get_clean_repo()
 
-    refresh_project_information(
-        repo, base_url, "NOT SET", https_cert_check, use_keyring=use_keyring
-    )
+    refresh_project_information(repo, base_url, "NOT SET", https_cert_check)
     auth_type, username, password = refresh_account_information(
-        repo,
-        auth_type,
-        username,
-        password,
-        save_password,
-        True,
-        use_keyring=use_keyring,
+        repo, auth_type, username, password, save_password, True
     )
     client = getClient(
         repo,
@@ -1338,7 +1221,6 @@ def new(
         password,
         https_cert_check,
         save_password,
-        use_keyring,
     )
 
     iter_file = repo.tree().traverse()
@@ -1357,9 +1239,7 @@ def new(
         project_id = response["project_id"]
         logger.info(f"Successfully uploaded {projectname} [{project_id}]")
         try:
-            refresh_project_information(
-                repo, base_url, project_id, https_cert_check, use_keyring=use_keyring
-            )
+            refresh_project_information(repo, base_url, project_id, https_cert_check)
             if not whole_project_upload:
                 iter_file = repo.tree().traverse()
                 project_data = client.get_project_data(project_id)
