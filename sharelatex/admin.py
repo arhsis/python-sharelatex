@@ -3,7 +3,7 @@ import datetime
 import os
 import shutil
 import zipfile
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, Sequence, Tuple
 
 import pymongo
 from bson.objectid import ObjectId
@@ -144,7 +144,7 @@ def get_active_projects(days: int = 7) -> Mapping[str, datetime.datetime]:
 
 def get_project_collaborators(project_id: str) -> Any:
     """return a dict containing in keys the ids of the collaborators for
-    the project of project_id id, and in values their mail adress"""
+    the project of project_id id, and in values their mail address"""
     project = DB["projects"].find({"_id": ObjectId(project_id)})
     result = {}
 
@@ -156,6 +156,15 @@ def get_project_collaborators(project_id: str) -> Any:
                 result[str(ref_id)] = c["email"]
 
     return result
+
+
+def get_project_owner(project_id: str) -> Tuple[str, str]:
+    """return a tuple containing the id of the project owner with project_id id, 
+    and its mail address"""
+    project = DB["projects"].find_one({"_id": ObjectId(project_id)})
+    ref_id = project["owner_ref"]
+    o = DB["users"].find_one({"_id": ref_id})
+    return (str(ref_id), o["email"])
 
 
 def getUserIdByEmail(address: str) -> ObjectId:
