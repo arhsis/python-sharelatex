@@ -116,6 +116,27 @@ def _get_projects_before_after(
     return ids_and_lastUpdated
 
 
+def _get_users_before_after(
+    days: int, selector: str = "$gte"
+) -> Mapping[str, datetime.datetime]:
+    """return a dict containing in keys the ids of the active users
+    since the number of day passed in parameter,
+    and in value their lastLoggedIn date"""
+
+    ids_and_lastUpdated = {}
+    users = DB["users"]
+
+    date = datetime.datetime.now() - datetime.timedelta(days=days)
+    active_users = users.find({"lastLoggedIn": {selector: date}})
+
+    for active_user in active_users:
+        ids_and_lastUpdated[str(active_user["_id"])] = active_user[
+            "lastLoggedIn"
+        ]
+
+    return ids_and_lastUpdated
+
+
 def get_inactive_projects(days: int = 365) -> Mapping[str, datetime.datetime]:
     """Get the inactive projects for the last given days.
 
@@ -140,6 +161,32 @@ def get_active_projects(days: int = 7) -> Mapping[str, datetime.datetime]:
     """
     # lastUpdated later than now() - days
     return _get_projects_before_after(days, selector="$gt")
+
+
+def get_active_users(days: int = 365) -> Mapping[str, datetime.datetime]:
+    """Get the active users (login) for the last given days.
+
+    Args:
+        days: users login after now - days will be accounted as active
+
+    Returns:
+        Dict of users id mapped to the last login date
+    """
+    # last login earlier than the now() - days
+    return _get_users_before_after(days, selector="$gte")
+
+
+def get_inactive_users(days: int = 365) -> Mapping[str, datetime.datetime]:
+    """Get the inactive users (not login) for the last given days.
+
+    Args:
+        days: users not login after now - days will be accounted as inactive
+
+    Returns:
+        Dict of users id mapped to the last login date
+    """
+    # last login earlier than the now() - days
+    return _get_users_before_after(days, selector="$lt")
 
 
 def get_project_collaborators(project_id: str) -> Any:
