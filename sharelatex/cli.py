@@ -1089,6 +1089,11 @@ def _push(
 
     logger.debug("Modify files to upload :")
     for d in diff_index.iter_change_type("M"):
+        # iter_change_type("M") can also includes renamed files 
+        # (in the case the content get modified afterwards)
+        # so skipping this special case here as this will be handle later
+        if d.change_type == "R":
+            continue
         if _upload(repo, client, project_data, d.a_path) not in folders:
             project_data = client.get_project_data(project_id)
             folders = {f["folder_id"] for f in walk_folders(project_data)}
