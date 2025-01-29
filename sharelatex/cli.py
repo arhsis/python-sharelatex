@@ -1089,7 +1089,7 @@ def _push(
 
     logger.debug("Modify files to upload :")
     for d in diff_index.iter_change_type("M"):
-        # iter_change_type("M") can also includes renamed files 
+        # iter_change_type("M") can also includes renamed files
         # (in the case the content get modified afterwards)
         # so skipping this special case here as this will be handle later
         if d.change_type == "R":

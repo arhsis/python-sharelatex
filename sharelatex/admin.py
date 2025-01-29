@@ -130,9 +130,7 @@ def _get_users_before_after(
     active_users = users.find({"lastLoggedIn": {selector: date}})
 
     for active_user in active_users:
-        ids_and_lastUpdated[str(active_user["_id"])] = active_user[
-            "lastLoggedIn"
-        ]
+        ids_and_lastUpdated[str(active_user["_id"])] = active_user["lastLoggedIn"]
 
     return ids_and_lastUpdated
 
@@ -206,7 +204,7 @@ def get_project_collaborators(project_id: str) -> Any:
 
 
 def get_project_owner(project_id: str) -> Tuple[str, str]:
-    """return a tuple containing the id of the project owner with project_id id, 
+    """return a tuple containing the id of the project owner with project_id id,
     and its mail address"""
     project = DB["projects"].find_one({"_id": ObjectId(project_id)})
     ref_id = project["owner_ref"]
