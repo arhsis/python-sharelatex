@@ -1,6 +1,3 @@
-# This file is a template, and might need editing before it works on your project.
-# Official language image. Look for the different tagged releases at:
-# https://hub.docker.com/r/library/python/tags/
 image: python:3.9
 
 variables:
@@ -30,41 +27,6 @@ docs:
   script:
   - tox -e docs
 
-py39-functionnal-1.2.1:
-    tags: [ci.inria.fr, large]
-    stage: test
-    image: python:3.9
-    variables:
-      TOXENV: py39
-    script:
-    # Install docker programs (docker-cli, docker-compose)
-    - apt update
-    - apt-get install -y apt-transport-https ca-certificates curl gnupg2 software-properties-common
-    - curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
-    - apt-key fingerprint 0EBFCD88
-    - add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
-    - apt update
-    - apt install -y docker-ce-cli
-    - pip install --upgrade pip setuptools wheel
-    - pip install docker-compose
-    #  Install sharelatex
-    - cd sharelatex/tests/1.2.1
-    - docker-compose up -d
-    # Prepare the the functionnal tests
-    # -create an user
-    # -export the env variables needed by the tests
-    - docker cp CreateUserTest.coffee sharelatex:/var/www/sharelatex/tasks/CreateUserTest.coffee
-    - docker exec --workdir /var/www/sharelatex -i sharelatex grunt user:test --email=joe@inria.fr
-    - export CI_BASE_URL=http://172.17.0.1:8080
-    - export CI_USERNAMES=joe@inria.fr
-    - export CI_PASSWORDS=TestTest42
-    - export CI_AUTH_TYPE=legacy
-
-    # let's test !
-    - tox
-
-
-
 
 #######################################################################################
 #
@@ -76,20 +38,21 @@ py39-functionnal-1.2.1:
 #      functionnal
 #
 #######################################################################################
-py36-functionnal: &base-functionnal
+py39-functional: &base-functional
   tags: [ci.inria.fr, large]
   stage: test
-  image: python:3.6
+  image: python:3.9
   variables:
-    TOXENV: py36
+    TOXENV: py39
   script:
   # Install docker programs (docker-cli, docker-compose)
   - env
   - apt update
-  - apt-get install -y apt-transport-https ca-certificates curl gnupg2 software-properties-common
-  - curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
-  - apt-key fingerprint 0EBFCD88
-  - add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
+  - apt-get install -y ca-certificates curl
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian  bookworm stable" > /etc/apt/sources.list.d/docker.list
   - apt update
   - apt install -y docker-ce-cli  docker-compose-plugin  #  Install sharelatex
   - cd sharelatex/tests
@@ -110,38 +73,29 @@ py36-functionnal: &base-functionnal
   # the python interpreter version is taken from the TOXENV var
   - tox
 
-py37-functionnal:
-  <<: *base-functionnal
-  stage: test
-  image: python:3.7
-  variables:
-    TOXENV: py37
-
-py38-functionnal:
-  <<: *base-functionnal
-  stage: test
-  image: python:3.8
-  variables:
-    TOXENV: py38
-  allow_failure: true
-
-py39-functionnal:
-  <<: *base-functionnal
-  stage: test
-  image: python:3.9
-  variables:
-    TOXENV: py39
-  allow_failure: true
-
-
-py310-functionnal:
-  <<: *base-functionnal
+py310-functional:
+  <<: *base-functional
   stage: test
   image: python:3.10
   variables:
     TOXENV: py310
   allow_failure: true
 
+py311-functional:
+  <<: *base-functional
+  stage: test
+  image: python:3.11
+  variables:
+    TOXENV: py311
+  allow_failure: true
+
+py312-functional:
+  <<: *base-functional
+  stage: test
+  image: python:3.12
+  variables:
+    TOXENV: py312
+  allow_failure: true
 ########################################################################################
 #
 # Release zone:
