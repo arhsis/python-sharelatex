@@ -2,7 +2,28 @@ Changelog
 ===========
 
 
-3.0.0
+1.0.4
+-----
+
+- Fix an issue on push when a file is renamed locally then modified
+- Admin lib
+
+1.0.3
+-----
+
+TODO
+
+1.0.2
+-----
+
+TODO
+
+1.0.1
+-----
+
+TODO
+
+1.0.0
 -----
 
 - Added support for https://overleaf.irisa.fr
@@ -12,7 +33,7 @@ Changelog
     - Overleaf CE (3.0.1) --  `community` authentication method
 - Optimize pull/push operation by requesting only file that needs to be updated
   (based on time comparisons between your local machine and the remote server)
-- Use persitent sessions by default (avoid to log in for every single requests)
+- Use persistent sessions by default (avoid to log in for every single requests)
 
 0.5.2
 -----
