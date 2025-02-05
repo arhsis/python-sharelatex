@@ -404,9 +404,10 @@ class OverleafCommunityAuthenticator(DefaultAuthenticator):
     """
     Overleaf Community authenticator.
     """
+
     def __init__(self) -> None:
         super().__init__()
-        self.sid_name = 'overleaf.sid'
+        self.sid_name = "overleaf.sid"
 
 
 class LegacyAuthenticator(DefaultAuthenticator):
@@ -559,7 +560,7 @@ AUTH_DICT = {
     "gitlab": GitlabAuthenticator,
     "community": CommunityAuthenticator,
     "legacy": LegacyAuthenticator,
-    "overleaf_community": OverleafCommunityAuthenticator
+    "overleaf_community": OverleafCommunityAuthenticator,
 }
 
 
