@@ -302,7 +302,7 @@ class Authenticator:
         self.login_url: str = ""
         self.username: str = ""
         self.password: str = ""
-        self.sid_name: str = ""
+        self.sid_name: str = "sharelatex.sid"
         self.verify: bool = True
         self.csrf: str = ""
         self.login_data: Mapping[str, Any] = {}
@@ -328,7 +328,6 @@ class Authenticator:
         password: str,
         verify: bool = True,
         login_path: str = "/login",
-        sid_name: str = "sharelatex.sid",
     ) -> Tuple[Mapping[str, Any], Mapping[str, Any]]:
         """Authenticate.
 
@@ -365,13 +364,11 @@ class DefaultAuthenticator(Authenticator):
         password: str,
         verify: bool = True,
         login_path: str = "/login",
-        sid_name: str = "sharelatex.sid",
     ) -> Tuple[Mapping[str, Any], Mapping[str, Any]]:
         self.login_url = urllib.parse.urljoin(base_url, login_path)
         self.username = username
         self.password = password
         self.verify = verify
-        self.sid_name = sid_name
 
         r = self.session.get(self.login_url, verify=self.verify)
 
@@ -403,6 +400,15 @@ class CommunityAuthenticator(DefaultAuthenticator):
     pass
 
 
+class OverleafCommunityAuthenticator(DefaultAuthenticator):
+    """
+    Overleaf Community authenticator.
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        self.sid_name = 'overleaf.sid'
+
+
 class LegacyAuthenticator(DefaultAuthenticator):
     """
     Legacy authenticator
@@ -415,7 +421,6 @@ class LegacyAuthenticator(DefaultAuthenticator):
         password: str,
         verify: bool = True,
         login_path: str = "/login",
-        sid_name: str = "sharelatex.sid",
     ) -> Tuple[Mapping[str, Any], Mapping[str, Any]]:
         """
         Authenticate.
@@ -424,7 +429,6 @@ class LegacyAuthenticator(DefaultAuthenticator):
         self.username = username
         self.password = password
         self.verify = verify
-        self.sid_name = sid_name
 
         r = self.session.get(self.login_url, verify=self.verify)
         _csrf = get_csrf_Token(r.text)
@@ -483,7 +487,6 @@ class GitlabAuthenticator(DefaultAuthenticator):
         password: str,
         verify: bool = True,
         login_path: str = "/auth/callback/gitlab",
-        sid_name: str = "sharelatex.sid",
     ) -> Tuple[Mapping[str, Any], Mapping[str, Any]]:
         """
         Authenticate.
@@ -492,7 +495,6 @@ class GitlabAuthenticator(DefaultAuthenticator):
         self.username = username
         self.password = password
         self.verify = verify
-        self.sid_name = sid_name
         try:
             url, ldap_form, _ = self._get_login_forms()
             return self._authenticate(url, ldap_form, self._login_data_ldap)
@@ -557,6 +559,7 @@ AUTH_DICT = {
     "gitlab": GitlabAuthenticator,
     "community": CommunityAuthenticator,
     "legacy": LegacyAuthenticator,
+    "overleaf_community": OverleafCommunityAuthenticator
 }
 
 
