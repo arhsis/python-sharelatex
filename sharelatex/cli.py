@@ -44,8 +44,8 @@ except ImportError:
     from typing_extensions import TypedDict  # type: ignore
 
 URL_MALFORMED_ERROR_MESSAGE = "projet_url is not well formed or missing"
-URL_SEEMS_TO_BE_ANONYMOUS_URL = """ projet_url seems to be an anonymous URL:
- check in a browser for get the true project URL"""
+URL_SEEMS_TO_BE_ANONYMOUS_URL = """, projet_url seems to be an anonymous URL:
+ check in a browser to get the true project URL"""
 AUTHENTICATION_FAILED = "Unable to authenticate, exiting"
 
 logger = logging.getLogger(__name__)
