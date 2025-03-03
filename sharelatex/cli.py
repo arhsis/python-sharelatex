@@ -44,6 +44,8 @@ except ImportError:
     from typing_extensions import TypedDict  # type: ignore
 
 URL_MALFORMED_ERROR_MESSAGE = "projet_url is not well formed or missing"
+URL_SEEMS_TO_BE_ANONYMOUS_URL = """ projet_url seems to be an anonymous URL:
+ check in a browser for get the true project URL"""
 AUTHENTICATION_FAILED = "Unable to authenticate, exiting"
 
 logger = logging.getLogger(__name__)
@@ -963,6 +965,9 @@ def clone(
     fails if it already exists. Connection information can be saved in the local git
     config.
 
+    The project URL must not be an anonymous project URL:
+    Expected project URL format is http[s]://base_server_address/project/<project_id>
+
     It works as follow:
 
         1. Download and unzip the remote project in the target directory\n
@@ -976,6 +981,8 @@ def clone(
     project_id = slashparts[-1]
     base_url = "/".join(slashparts[:-2])
     if base_url == "":
+        if "project" not in project_id:
+            raise Exception(URL_MALFORMED_ERROR_MESSAGE + URL_SEEMS_TO_BE_ANONYMOUS_URL)
         raise Exception(URL_MALFORMED_ERROR_MESSAGE)
     if directory == "":
         directory_as_path = Path(os.getcwd())
