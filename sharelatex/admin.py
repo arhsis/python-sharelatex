@@ -238,6 +238,29 @@ def getProjectsIdsOwnedByUserId(owner_id: str) -> list:
     ]
 
 
+def getCollaborationProjectsIdsByUserId(owner_id: str, read_only: bool = False) -> list:
+    if read_only:
+        ref = "readOnly_refs"
+    else:
+        ref = "collaberator_refs"
+    return [
+        str(p["_id"]) for p in DB["projects"].find() if ObjectId(owner_id) in p[ref]
+    ]
+
+
+def addCollaboratorToProject(project_id: str, user_id: str, read_only: bool = False):
+    if read_only:
+        ref = "readOnly_refs"
+    else:
+        ref = "collaberator_refs"
+    p = DB["projects"].find_one({"_id": ObjectId(project_id)})
+    if ObjectId(user_id) in p[ref]:
+        raise NameError("UserAlreadyInCollaborators")
+    DB["projects"].update_one(
+        {"_id": ObjectId(project_id)}, {"$push": {ref: ObjectId(user_id)}}
+    )
+
+
 def changeProjectOwner(project_id: str, new_onwer_id: str) -> Any:
     project = DB["projects"].find_one({"_id": ObjectId(project_id)})
     if project:
