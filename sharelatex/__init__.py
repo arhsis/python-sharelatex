@@ -556,8 +556,31 @@ class GitlabAuthenticator(DefaultAuthenticator):
         return login_data, {self.sid_name: _r.cookies[self.sid_name]}
 
 
+class OverleafGitlabAuthenticator(GitlabAuthenticator):
+    """
+    for Overleaf version newer that 3.5.13
+    We use Gitlab as authentication backend (using OAUTH2).
+
+    In this context, the login page redirect to the login page of gitlab(inria),
+    which in turn redirect to Overleaf. upon success, we get back the project
+    page where the csrf token can be found
+
+    More precisely there are two login forms available
+        - one for LDAP account (inria)
+        - one for Local account (external user)
+    As a consequence we adopt the following strategy to authenticate:
+    First we attempt to log with the LDAP form if that fails for any reason
+    we try to log in with the local form.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.sid_name = "overleaf.sid"
+
+
 AUTH_DICT = {
     "gitlab": GitlabAuthenticator,
+    "overleaf_gitlab": OverleafGitlabAuthenticator,
     "community": CommunityAuthenticator,
     "legacy": LegacyAuthenticator,
     "overleaf_community": OverleafCommunityAuthenticator,

@@ -130,7 +130,7 @@ MESSAGE_REPO_ISNT_CLEAN = "The repo isn't clean"
 
 PROMPT_BASE_URL = "Base url: "
 PROMPT_PROJECT_ID = "Project id: "
-PROMPT_AUTH_TYPE = "Authentication type (*gitlab*|community|legacy): "
+PROMPT_AUTH_TYPE = "Authentication type (*gitlab*|overleaf_gitlab|community|legacy): "
 DEFAULT_AUTH_TYPE = "gitlab"
 PROMPT_USERNAME = "Username: "
 PROMPT_PASSWORD = "Password: "
