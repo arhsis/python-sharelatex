@@ -624,6 +624,8 @@ AUTH_DICT = {
     "overleaf_gitlab": OverleafGitlabAuthenticator,
     "community": CommunityAuthenticator,
     "legacy": LegacyAuthenticator,
+    "cookie": CookieAuthenticator,
+    "overleaf_cookie": OverleafcookieAuthenticator,
     "overleaf_community": OverleafCommunityAuthenticator,
 }
 
