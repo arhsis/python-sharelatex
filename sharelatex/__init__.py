@@ -400,9 +400,50 @@ class CommunityAuthenticator(DefaultAuthenticator):
     pass
 
 
+class CookieAuthenticator(DefaultAuthenticator):
+    """
+    Cookie session authenticator.
+    """
+    def authenticate(
+        self,
+        base_url: str,
+        username: str,
+        password: str,
+        verify: bool = True,
+        login_path: str = "/login",
+    ) -> Tuple[Mapping[str, Any], Mapping[str, Any]]:
+        """
+        Authenticate throw session cookie.
+        Pass the content of 'sharelatex.sid' cookie as password
+        parameter in SyncClient constructor
+        """
+        self.login_url = urllib.parse.urljoin(base_url, login_path)
+        self.username = username
+        self.password = password
+        self.verify = verify
+        self._csrf = None
+        self.login_data = dict(
+            email=self.username,
+            password=self.password,
+            _csrf=self.csrf,
+        )
+        login_data = dict(email=self.username, _csrf=None)
+        return login_data, {self.sid_name: password}
+
+
 class OverleafCommunityAuthenticator(DefaultAuthenticator):
     """
     Overleaf Community authenticator.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.sid_name = "overleaf.sid"
+
+
+class OverleafcookieAuthenticator(CookieAuthenticator):
+    """
+    Overleaf Community Cookie session authenticator.
     """
 
     def __init__(self) -> None:
