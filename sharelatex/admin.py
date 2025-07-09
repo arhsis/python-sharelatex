@@ -180,6 +180,22 @@ def get_active_users(days: int = 365) -> Mapping[str, datetime.datetime]:
     return _get_users_before_after(days, selector="$gte")
 
 
+def write_list_users_mails(list_id: Sequence[str], path: str | os.PathLike):
+    """Get a users id sequence and write corresponding emails list in a path.
+    Args:
+        list_id: users login after now - days will be accounted as active
+
+    Returns:
+        Dict of users id mapped to the last login date
+    """
+    emails = [
+        DB.users.find_one({'_id': ObjectId(u)})['email'] for u in list_id
+        ]
+    with open(path, 'w') as f:
+        for e in emails:
+            f.write(f'{e}\n')
+
+
 def get_inactive_users(days: int = 365) -> Mapping[str, datetime.datetime]:
     """Get the inactive users (not login) for the last given days.
 
