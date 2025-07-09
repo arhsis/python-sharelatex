@@ -834,7 +834,12 @@ class SyncClient:
         r = self._get(url=f"{self.base_url}/project/", verify=self.verify)
         parsed = html.fromstring(r.content)
         elements = parsed.xpath("//meta[@name='ol-projects']")
-        return list(json.loads(elements[0].get("content")))
+        if elements:
+            return list(json.loads(elements[0].get("content")))
+        else:
+            # try new version of overleaf schema
+            elements = parsed.xpath("//meta[@name='ol-prefetchedProjectsBlob']")
+            return json.loads(elements[0].get("content"))["projects"]
 
     def get_project_update_data(self, project_id: str) -> UpdateDatum:
         """Get update (history) data of a project.

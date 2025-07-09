@@ -12,8 +12,14 @@ from bson.objectid import ObjectId
 # - Align the name with those from the overleaf container
 # - Give precedence to the MONGO_URL if found
 mongo_user = os.environ.get("MONGO_SHARELATEX_USER")
+if not mongo_user:
+    mongo_user = os.environ.get("MONGO_OVERLEAF_USER")
 mongo_pass = os.environ.get("MONGO_SHARELATEX_PASSWORD")
+if not mongo_pass:
+    mongo_pass = os.environ.get("MONGO_OVERLEAF_PASSWORD")
 mongo_url = os.environ.get("SHARELATEX_MONGO_URL")
+if not mongo_url:
+    mongo_url = os.environ.get("OVERLEAF_MONGO_URL")
 
 mongo_host = os.environ.get("MONGO_HOST", "127.0.0.1")
 
