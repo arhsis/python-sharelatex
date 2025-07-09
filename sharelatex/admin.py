@@ -3,7 +3,7 @@ import datetime
 import os
 import shutil
 import zipfile
-from typing import Any, Mapping, Sequence, Tuple
+from typing import Any, Mapping, Sequence, Tuple, Union
 
 import pymongo
 from bson.objectid import ObjectId
@@ -180,7 +180,8 @@ def get_active_users(days: int = 365) -> Mapping[str, datetime.datetime]:
     return _get_users_before_after(days, selector="$gte")
 
 
-def write_list_users_mails(list_id: Sequence[str], path: str | os.PathLike):
+def write_list_users_mails(list_id: Sequence[str], 
+                           path: Union[str, os.PathLike]):
     """Get a users id sequence and write corresponding emails list in a path.
     Args:
         list_id: users login after now - days will be accounted as active
