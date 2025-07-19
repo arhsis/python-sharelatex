@@ -130,8 +130,9 @@ MESSAGE_REPO_ISNT_CLEAN = "The repo isn't clean"
 
 PROMPT_BASE_URL = "Base url: "
 PROMPT_PROJECT_ID = "Project id: "
-PROMPT_AUTH_TYPE = "Authentication type (*gitlab*|overleaf_gitlab|community|cookie|overleaf_cookie|legacy): "
-DEFAULT_AUTH_TYPE = "gitlab"
+PROMPT_AUTH_TYPE = """Authentication type
+(gitlab|*overleaf_gitlab*|community|cookie|overleaf_cookie|legacy): """
+DEFAULT_AUTH_TYPE = "overleaf_gitlab"
 PROMPT_USERNAME = "Username: "
 PROMPT_PASSWORD = "Password: "
 PROMPT_CONFIRM = "Do you want to save your password in your OS keyring system (y/n) ?"
@@ -686,11 +687,26 @@ def _sync_remote_docs(
                 local_time = datetime.datetime.fromtimestamp(
                     local_path.stat().st_mtime, datetime.timezone.utc
                 )
-            updates = [
-                update["meta"]["end_ts"]
-                for update in update_data["updates"]
-                if doc_id in update["docs"]
-            ]
+            if update_data["updates"]:
+                # check if have a new updates data structure
+                if "pathnames" in update_data["updates"][0]:
+                    updates = []
+                    for update in update_data["updates"]:
+                        if relative_path in update["pathnames"]:
+                            updates.append(update["meta"]["end_ts"])
+                        else:
+                            for op in update["project_ops"]:
+                                for v in op.values():
+                                    if type(v) is dict:
+                                        if "pathname" in v:
+                                            if relative_path == v["pathname"]:
+                                                updates.append(update["meta"]["end_ts"])
+                else:
+                    updates = [
+                        update["meta"]["end_ts"]
+                        for update in update_data["updates"]
+                        if doc_id in update["docs"]
+                    ]
             if len(updates) > 0:
                 remote_time = datetime.datetime.fromtimestamp(
                     updates[0] / 1000, datetime.timezone.utc

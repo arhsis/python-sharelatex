@@ -23,6 +23,10 @@ from sharelatex.cli import (
 )
 from sharelatex.cli import cli as cli_cli
 
+sample_image_file_name = "frog.jpg"
+sample_latex_file_name = "main.tex"
+sample_bib_file_name = "sample.bib"
+
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -30,6 +34,7 @@ BASE_URL = typing_cast(str, os.environ.get("CI_BASE_URL"))
 USERNAMES = typing_cast(str, os.environ.get("CI_USERNAMES"))
 PASSWORDS = typing_cast(str, os.environ.get("CI_PASSWORDS"))
 AUTH_TYPE = typing_cast(str, os.environ.get("CI_AUTH_TYPE"))
+VERIFY = True  # typing_cast(bool, os.environ.get("CI_SSL_VERIFY"))
 
 # Operate with a list of users
 # This workarounds the rate limitation on the API if enough usernames and
@@ -136,7 +141,6 @@ def project(
     branch: Optional[str] = None,
     sharelatex_git_branch: typing.Optional[str] = None,
 ) -> Generator:
-
     """A convenient contextmanager to create a temporary project on sharelatex."""
 
     # First we create a client.
@@ -148,7 +152,7 @@ def project(
         username=username,
         password=password,
         authenticator=authenticator,
-        verify=False,
+        verify=VERIFY,
     )
     with tempfile.TemporaryDirectory() as temp_path:
         old_dir = Path.cwd()
@@ -247,14 +251,14 @@ class TestCli(unittest.TestCase):
         def _test_clone_and_push_local_modification(
             project: Project,
         ) -> None:
-            """Local modification on main.tex"""
-            check_call("echo test > main.tex", shell=True)
+            """Local modification on {sample_latex_file_name}"""
+            check_call(f"echo test > {sample_latex_file_name}", shell=True)
             project.repo.git.add(".")
             project.repo.index.commit("test")
 
             result = self._RUNNER.invoke(cli_cli, ["push", "-vvv"])
             self.assertEqual(result.exit_code, 0)
-            remote_content = project.get_doc_by_path("./main.tex")
+            remote_content = project.get_doc_by_path(f"./{sample_latex_file_name}")
 
             # for some reason there's a trailing \n...
             self.assertEqual("test\n", remote_content)
@@ -306,7 +310,7 @@ class TestCli(unittest.TestCase):
             check_call("echo test > test/test.tex", shell=True)
 
             check_call("mkdir -p test_bin", shell=True)
-            check_call("cp ./universe.jpg test_bin/test.jpg", shell=True)
+            check_call(f"cp ./{sample_image_file_name} test_bin/test.jpg", shell=True)
 
             # create the document and the file on the remote copy
             client = project.client
@@ -337,7 +341,9 @@ class TestCli(unittest.TestCase):
             # TODO: check content of file
             from filecmp import cmp
 
-            self.assertTrue(cmp("test_bin/test.jpg", "universe.jpg", shallow=False))
+            self.assertTrue(
+                cmp("test_bin/test.jpg", sample_image_file_name, shallow=False)
+            )
 
         _test_clone_and_pull_remote_addition()
 
@@ -353,7 +359,7 @@ class TestCli(unittest.TestCase):
             project: Project,
         ) -> None:
             """Deletion of a local file"""
-            check_call("rm main.tex", shell=True)
+            check_call(f"rm {sample_latex_file_name}", shell=True)
             project.repo.git.add(".")
             project.repo.index.commit("test")
             result = self._RUNNER.invoke(
@@ -361,7 +367,7 @@ class TestCli(unittest.TestCase):
             )
             self.assertEqual(result.exit_code, 0)
             with self.assertRaises(StopIteration) as _:
-                project.get_doc_by_path("./main.tex")
+                project.get_doc_by_path(f"./{sample_latex_file_name}")
 
         _test_clone_and_push_local_deletion()
 
@@ -383,8 +389,8 @@ class TestCli(unittest.TestCase):
             # TODO: we could check the diff
             self.assertFalse(os.path.exists(c_path))
 
-        _test_clone_and_pull_remote_deletion(c_path="./universe.jpg")
-        _test_clone_and_pull_remote_deletion(c_path="./references.bib")
+        _test_clone_and_pull_remote_deletion(c_path=f"./{sample_image_file_name}")
+        _test_clone_and_pull_remote_deletion(c_path=f"./{sample_bib_file_name}")
 
     @data(
         [

@@ -180,8 +180,9 @@ def get_active_users(days: int = 365) -> Mapping[str, datetime.datetime]:
     return _get_users_before_after(days, selector="$gte")
 
 
-def write_list_users_mails(list_id: Sequence[str], 
-                           path: Union[str, os.PathLike]):
+def write_list_users_mails(
+    list_id: Sequence[str], path: Union[str, os.PathLike]
+) -> None:
     """Get a users id sequence and write corresponding emails list in a path.
     Args:
         list_id: users login after now - days will be accounted as active
@@ -189,12 +190,10 @@ def write_list_users_mails(list_id: Sequence[str],
     Returns:
         Dict of users id mapped to the last login date
     """
-    emails = [
-        DB.users.find_one({'_id': ObjectId(u)})['email'] for u in list_id
-        ]
-    with open(path, 'w') as f:
+    emails = [DB.users.find_one({"_id": ObjectId(u)})["email"] for u in list_id]
+    with open(path, "w") as f:
         for e in emails:
-            f.write(f'{e}\n')
+            f.write(f"{e}\n")
 
 
 def get_inactive_users(days: int = 365) -> Mapping[str, datetime.datetime]:
@@ -271,7 +270,9 @@ def getCollaborationProjectsIdsByUserId(owner_id: str, read_only: bool = False) 
     ]
 
 
-def addCollaboratorToProject(project_id: str, user_id: str, read_only: bool = False):
+def addCollaboratorToProject(
+    project_id: str, user_id: str, read_only: bool = False
+) -> None:
     if read_only:
         ref = "readOnly_refs"
     else:
