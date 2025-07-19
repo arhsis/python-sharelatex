@@ -6,29 +6,18 @@ import re
 import threading
 import time
 import urllib.parse
-import uuid
 import zipfile
 from pathlib import Path
-from typing import (
-    Any,
-    Callable,
-    Generator,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import (Any, Callable, Dict, Generator, Mapping, Optional,
+                    Sequence, Tuple, Type, Union)
 from typing import cast as typing_cast
 
 import filetype
 import requests
 from appdirs import user_data_dir
-
 # try to find CAS form
 from lxml import html
-from socketIO_client import BaseNamespace, SocketIO
+from socketIO_client import LoggingNamespace, SocketIO
 
 from .__version__ import __version__
 
@@ -65,6 +54,8 @@ class Update(TypedDict):
 
     docs: Sequence[str]
     meta: UpdateMeta
+    pathnames: Sequence[str]
+    project_ops: Dict
 
 
 class UpdateDatum(TypedDict):
@@ -404,6 +395,7 @@ class CookieAuthenticator(DefaultAuthenticator):
     """
     Cookie session authenticator.
     """
+
     def authenticate(
         self,
         base_url: str,
@@ -730,69 +722,28 @@ class SyncClient:
             project_id (str): The id of the project
         """
 
-        url = f"{self.base_url}/project/{project_id}"
+        url = f"{self.base_url}"
 
         # use thread local storage to pass the project data
         storage = threading.local()
         storage.is_data = False
 
-        class Namespace(BaseNamespace):
-            """
-            Namespace.
-            """
-
-            def on_connect(self) -> None:
-                """
-                On connect.
-                """
-                logger.debug("[Connected] Yeah !!")
-
-            def on_reconnect(self) -> None:
-                """
-                On re.
-                """
-                logger.debug("[Reconnected] re-Yeah !!")
-
-            def on_disconnect(self) -> None:
-                """
-                On dis.
-                """
-                logger.debug("[Disconnected]  snif!  ")
-
         def on_joint_project(*args: Any) -> None:
-            """
-            on_joint_project
-            """
-            storage.project_data = args[1]
+            logger.debug("[socketIO] join project ok")
+            storage.project_data = args[0]["project"]
             storage.is_data = True
-
-        def on_connection_rejected(*args: Any) -> None:
-            """
-            on_connection_rejected
-            """
-            logger.debug("[connectionRejected]  oh !!!")
 
         headers = {"Referer": url}
         headers.update(self.headers)
         with SocketIO(
             self.base_url,
+            params={"projectId": project_id},
             verify=self.verify,
-            Namespace=Namespace,
+            Namespace=LoggingNamespace,
             cookies=self.cookie,
             headers=headers,
         ) as socketIO:
-
-            def on_connection_accepted(*args: Any) -> None:
-                """
-                on_connection_accepted
-                """
-                logger.debug("[connectionAccepted]  Waoh !!!")
-                socketIO.emit(
-                    "joinProject", {"project_id": project_id}, on_joint_project
-                )
-
-            socketIO.on("connectionAccepted", on_connection_accepted)
-            socketIO.on("connectionRejected", on_connection_rejected)
+            socketIO.on("joinProjectResponse", on_joint_project)
             while not storage.is_data:
                 logger.debug("[socketIO] wait for project data")
                 socketIO.wait(0.1)
@@ -837,9 +788,8 @@ class SyncClient:
         if elements:
             return list(json.loads(elements[0].get("content")))
         else:
-            # try new version of overleaf schema
             elements = parsed.xpath("//meta[@name='ol-prefetchedProjectsBlob']")
-            return json.loads(elements[0].get("content"))["projects"]
+            return list(json.loads(elements[0].get("content"))["projects"])
 
     def get_project_update_data(self, project_id: str) -> UpdateDatum:
         """Get update (history) data of a project.
@@ -947,42 +897,13 @@ class SyncClient:
         # use thread local storage to pass the project data
         storage = threading.local()
         storage.is_data = False
-
-        class Namespace(BaseNamespace):
-            """
-            Namespace.
-            """
-
-            def on_connect(self) -> None:
-                """
-                on_connect.
-                """
-                logger.debug("[Connected] Yeah !!")
-
-            def on_reconnect(self) -> None:
-                """
-                on_reconnect.
-                """
-                logger.debug("[Reconnected] re-Yeah !!")
-
-            def on_disconnect(self) -> None:
-                """
-                on_disconnect.
-                """
-                logger.debug("[Disconnected]  snif!  ")
-
-        def on_connection_rejected(*args: Any) -> None:
-            """
-            on_connection_rejected.
-            """
-            logger.debug("[connectionRejected]  oh !!!")
-
         headers = {"Referer": url}
         headers.update(self.headers)
         with SocketIO(
             self.base_url,
+            params={"projectId": project_id},
             verify=self.verify,
-            Namespace=Namespace,
+            Namespace=LoggingNamespace,
             cookies=self.cookie,
             headers=headers,
         ) as socketIO:
@@ -991,6 +912,7 @@ class SyncClient:
                 """
                 on_joint_doc.
                 """
+                logger.debug("[socketIO] join doc ok")
                 # transform list of str (lines) as bytes for finally decode as
                 # utf-8 list of str
                 storage.doc_data = [
@@ -1002,24 +924,15 @@ class SyncClient:
                 """
                 on_joint_project.
                 """
-                storage.project_data = args[1]
+                storage.project_data = args[0]
                 socketIO.emit("joinDoc", doc_id, {"encodeRanges": True}, on_joint_doc)
 
-            def on_connection_accepted(*args: Any) -> None:
-                """
-                on_connection_accepted.
-                """
-                logger.debug("[connectionAccepted]  Waoh !!!")
-                socketIO.emit(
-                    "joinProject", {"project_id": project_id}, on_joint_project
-                )
-
-            socketIO.on("connectionAccepted", on_connection_accepted)
-            socketIO.on("connectionRejected", on_connection_rejected)
+            socketIO.on("joinProjectResponse", on_joint_project)
             while not storage.is_data:
-                logger.debug("[socketIO] wait for doc data")
+                logger.debug("[socketIO] wait for project data")
                 socketIO.wait(0.1)
-            logger.debug("[socketIO] wait for doc data finish !")
+            logger.debug("[socketIO] wait for project data finish !")
+
         # NOTE(msimonin): Check return type
         if dest_path is None:
             return "\n".join(storage.doc_data)
@@ -1134,21 +1047,34 @@ class SyncClient:
         Raises:
             Exception if the file can't be uploaded
         """
+
+        r = self._get(url=f"{self.base_url}/project/{project_id}", verify=self.verify)
+        parsed = html.fromstring(r.content)
+        elements = parsed.xpath("//meta[@name='ol-csrfToken']")
+        csrf = elements[0].get("content")
+
         url = f"{self.base_url}/project/{project_id}/upload"
         path_as_path = Path(c_path)
         # TODO(msimonin): handle correctly the content-type
-        mime = filetype.guess(str(path_as_path))
-        if not mime:
+        guess_type = filetype.guess(str(path_as_path))
+        if not guess_type:
             mime = "text/plain"
-        files = {"qqfile": (path_as_path.name, open(path_as_path, "rb"), mime)}
+        else:
+            mime = guess_type.mime
+        headers = {"X-CSRF-TOKEN": csrf}
+        headers.update(self.headers)
+        files = {
+            "relativePath": (None, "null", None),
+            "name": (None, path_as_path.name, None),
+            "type": (None, mime, None),
+            "qqfile": (path_as_path.name, open(path_as_path, "rb"), mime),
+        }
         params = {
             "folder_id": folder_id,
-            "_csrf": self.login_data["_csrf"],
-            "qquid": str(uuid.uuid4()),
-            "qqfilename": path_as_path.name,
-            "qqtotalfilesize": os.path.getsize(path_as_path),
         }
-        r = self._post(url, params=params, files=files, verify=self.verify)
+        r = self._post(
+            url, headers=headers, params=params, files=files, verify=self.verify
+        )
         r.raise_for_status()
         response = r.json()
         if not response["success"]:
@@ -1225,17 +1151,24 @@ class SyncClient:
         Raises:
              Exception if something is wrong with the zip of the upload.
         """
+
+        r = self._get(url=f"{self.base_url}/project", verify=self.verify)
+        parsed = html.fromstring(r.content)
+        elements = parsed.xpath("//meta[@name='ol-csrfToken']")
+        csrf = elements[0].get("content")
+
         url = f"{self.base_url}/project/new/upload"
         filename = os.path.basename(path)
         mime = "application/zip"
-        files = {"qqfile": (filename, open(path, "rb"), mime)}
-        params = {
-            "_csrf": self.login_data["_csrf"],
-            "qquid": str(uuid.uuid4()),
-            "qqfilename": filename,
-            "qqtotalfilesize": os.path.getsize(path),
+        headers = {"X-CSRF-TOKEN": csrf}
+        headers.update(self.headers)
+        files = {
+            "relativePath": (None, "null", None),
+            "name": (None, filename, None),
+            "type": (None, mime, None),
+            "qqfile": (filename, open(path, "rb"), mime),
         }
-        r = self._post(url, params=params, files=files, verify=self.verify)
+        r = self._post(url, headers=headers, files=files, verify=self.verify)
         r.raise_for_status()
         response = r.json()
         if not response["success"]:
