@@ -8,13 +8,24 @@ import time
 import urllib.parse
 import zipfile
 from pathlib import Path
-from typing import (Any, Callable, Dict, Generator, Mapping, Optional,
-                    Sequence, Tuple, Type, Union)
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+)
 from typing import cast as typing_cast
 
 import filetype
 import requests
 from appdirs import user_data_dir
+
 # try to find CAS form
 from lxml import html
 from socketIO_client import LoggingNamespace, SocketIO
