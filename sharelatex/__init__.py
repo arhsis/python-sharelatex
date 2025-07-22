@@ -740,9 +740,21 @@ class SyncClient:
         storage.is_data = False
 
         def on_joint_project(*args: Any) -> None:
-            logger.debug("[socketIO] join project ok")
-            storage.project_data = args[0]["project"]
+            logger.debug(f"[socketIO] join project ok {args}")
+            if args[0]:
+                storage.project_data = args[0]["project"]
+            else:
+                storage.project_data = args[1]
             storage.is_data = True
+
+        def on_connection_accepted(*args: Any) -> None:
+            """
+            on_connection_accepted
+            """
+            logger.debug("[connectionAccepted]  Waoh !!!")
+            socketIO.emit(
+                "joinProject", {"project_id": project_id}, on_joint_project
+            )
 
         headers = {"Referer": url}
         headers.update(self.headers)
@@ -755,6 +767,7 @@ class SyncClient:
             headers=headers,
         ) as socketIO:
             socketIO.on("joinProjectResponse", on_joint_project)
+            socketIO.on("connectionAccepted", on_connection_accepted)
             while not storage.is_data:
                 logger.debug("[socketIO] wait for project data")
                 socketIO.wait(0.1)
@@ -935,10 +948,23 @@ class SyncClient:
                 """
                 on_joint_project.
                 """
-                storage.project_data = args[0]
+                if args[0]:
+                    storage.project_data = args[0]["project"]
+                else:
+                    storage.project_data = args[1]
                 socketIO.emit("joinDoc", doc_id, {"encodeRanges": True}, on_joint_doc)
 
+            def on_connection_accepted(*args: Any) -> None:
+                """
+                on_connection_accepted
+                """
+                logger.debug("[connectionAccepted]  Waoh !!!")
+                socketIO.emit(
+                    "joinProject", {"project_id": project_id}, on_joint_project
+                )
+
             socketIO.on("joinProjectResponse", on_joint_project)
+            socketIO.on("connectionAccepted", on_connection_accepted)
             while not storage.is_data:
                 logger.debug("[socketIO] wait for project data")
                 socketIO.wait(0.1)

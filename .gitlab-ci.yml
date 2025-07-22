@@ -69,6 +69,9 @@ py39-functional: &base-functional
   - export CI_USERNAMES=joe1@inria.fr,joe2@inria.fr,joe3@inria.fr
   - export CI_PASSWORDS=TestTest42,TestTest42,TestTest42
   - export CI_AUTH_TYPE=community
+  - export CI_JPEG_FILE_NAME=universe.jpg
+  - export CI_TEX_FILE_NAME=main.tex
+  - export CI_BIB_FILE_NAME=references.bib
   # let's test !
   # the python interpreter version is taken from the TOXENV var
   - tox
