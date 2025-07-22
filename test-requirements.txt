@@ -5,3 +5,4 @@ pytest
 sphinx-click
 keyrings.alt
 ddt
+setuptools
