@@ -752,9 +752,7 @@ class SyncClient:
             on_connection_accepted
             """
             logger.debug("[connectionAccepted]  Waoh !!!")
-            socketIO.emit(
-                "joinProject", {"project_id": project_id}, on_joint_project
-            )
+            socketIO.emit("joinProject", {"project_id": project_id}, on_joint_project)
 
         headers = {"Referer": url}
         headers.update(self.headers)
