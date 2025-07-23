@@ -1,0 +1,11 @@
+OVERLEAF_APP_NAME="Overleaf Community Edition"
+
+MONGO_OVERLEAF_USER='user'
+MONGO_OVERLEAF_PASSWORD='password'
+MONGO_REPLICA_SET_KEY='1234567abcdf'
+
+OVERLEAF_MONGO_URL="mongodb://user:password@mongo/sharelatex?authSource=sharelatex&replicaSet=rs0&directConnection=true"
+
+# Same property, unfortunately with different names in
+# different locations
+OVERLEAF_REDIS_HOST="redis"
