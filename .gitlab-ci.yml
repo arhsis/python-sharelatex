@@ -1,4 +1,4 @@
-image: python:3.9
+image: python:3.12
 
 variables:
     PYTHONUNBUFFERED: "1"
@@ -44,6 +44,12 @@ py39-functional: &base-functional
   image: python:3.9
   variables:
     TOXENV: py39
+    SHARELATEX_IMAGE_VERSION: 3.0.1
+    AUTH_TYPE: community
+    JPEG_FILE_NAME: universe.jpg
+    TEX_FILE_NAME: main.tex
+    BIB_FILE_NAME: references.bib
+    DOCKER_ENV_FILE: env_sharelatex
   script:
   # Install docker programs (docker-cli, docker-compose)
   - env
@@ -56,22 +62,45 @@ py39-functional: &base-functional
   - apt update
   - apt install -y docker-ce-cli  docker-compose-plugin  #  Install sharelatex
   - cd sharelatex/tests
+  - export CI_SHARELATEX_IMAGE_VERSION="${SHARELATEX_IMAGE_VERSION}"
+  - export CI_DOCKER_ENV_FILE="${DOCKER_ENV_FILE}"
   - docker compose up -d
+  - sleep 10
+  - docker exec -i mongo /bin/bash -c 'mongosh -u root -p root --authenticationDatabase admin < /docker-entrypoint-initdb.d/01_init_replSet.js'
+  - docker exec -i mongo /bin/bash -c 'mongosh -u root -p root --authenticationDatabase admin < /docker-entrypoint-initdb.d/02_create_user.js'
   # Prepare the the functionnal tests
   # -create an user
   # -export the env variables needed by the tests
   - docker cp create-user-with-pass.js  sharelatex:/var/www/sharelatex/web/modules/server-ce-scripts/scripts
   # user creation isn't idempotent
+  #- docker exec sharelatex /bin/bash -ce "cd /overleaf/services/web && node modules/server-ce-scripts/scripts/create-user --admin --email=joe1@inria.fr"
   - docker exec --workdir /var/www/sharelatex/web/modules/server-ce-scripts/scripts -i sharelatex node create-user-with-pass.js --email=joe1@inria.fr --pass=TestTest42
   - docker exec --workdir /var/www/sharelatex/web/modules/server-ce-scripts/scripts -i sharelatex node create-user-with-pass.js --email=joe2@inria.fr --pass=TestTest42
   - docker exec --workdir /var/www/sharelatex/web/modules/server-ce-scripts/scripts -i sharelatex node create-user-with-pass.js --email=joe3@inria.fr --pass=TestTest42
   - export CI_BASE_URL=http://172.17.0.1:8080
   - export CI_USERNAMES=joe1@inria.fr,joe2@inria.fr,joe3@inria.fr
   - export CI_PASSWORDS=TestTest42,TestTest42,TestTest42
-  - export CI_AUTH_TYPE=community
+  - export CI_AUTH_TYPE="${AUTH_TYPE}"
+  - export CI_JPEG_FILE_NAME="${JPEG_FILE_NAME}"
+  - export CI_TEX_FILE_NAME="${TEX_FILE_NAME}"
+  - export CI_BIB_FILE_NAME="${BIB_FILE_NAME}"
   # let's test !
   # the python interpreter version is taken from the TOXENV var
   - tox
+  # clean data base for local CI execution
+  - docker exec -i mongo /bin/bash -c 'mongosh sharelatex -u $MONGO_INITDB_ROOT_USERNAME -p $MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval "db.dropDatabase();"'
+
+# py39-ov5.2.1-functional:
+#   <<: *base-functional
+#   stage: test
+#   variables:
+#     SHARELATEX_IMAGE_VERSION: 5.2.1
+#     AUTH_TYPE: overleaf_community
+#     JPEG_FILE_NAME: frog.jpg
+#     TEX_FILE_NAME: main.tex
+#     BIB_FILE_NAME: sample.bib
+#     DOCKER_ENV_FILE: env_overleaf
+#   allow_failure: true
 
 py310-functional:
   <<: *base-functional
@@ -79,6 +108,12 @@ py310-functional:
   image: python:3.10
   variables:
     TOXENV: py310
+    SHARELATEX_IMAGE_VERSION: 3.0.1
+    AUTH_TYPE: community
+    JPEG_FILE_NAME: universe.jpg
+    TEX_FILE_NAME: main.tex
+    BIB_FILE_NAME: references.bib
+    DOCKER_ENV_FILE: env_sharelatex
   allow_failure: true
 
 py311-functional:

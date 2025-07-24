@@ -9,7 +9,7 @@ services:
         restart: always
         # Server Pro users:
         # image: quay.io/sharelatex/sharelatex-pro
-        image: sharelatex/sharelatex:3.0.1
+        image: sharelatex/sharelatex:${CI_SHARELATEX_IMAGE_VERSION}
         container_name: sharelatex
         # hack
         command: /sbin/my_init
@@ -33,15 +33,14 @@ services:
             ####             socket, required for Sibling Containers to work    ####
             ########################################################################
             # - /var/run/docker.sock:/var/run/docker.sock
+        env_file: ${CI_DOCKER_ENV_FILE}
         environment:
-
-            SHARELATEX_APP_NAME: Overleaf Community Edition
-
-            SHARELATEX_MONGO_URL: mongodb://mongo/sharelatex
-
-            # Same property, unfortunately with different names in
-            # different locations
-            SHARELATEX_REDIS_HOST: redis
+            # passed on env_file now
+                #SHARELATEX_APP_NAME: Overleaf Community Edition
+                #SHARELATEX_MONGO_URL: mongodb://mongo/sharelatex
+                # Same property, unfortunately with different names in
+                # different locations
+                #SHARELATEX_REDIS_HOST: redis
             REDIS_HOST: redis
 
             ENABLED_LINKED_FILE_TYPES: 'url,project_file'
@@ -111,16 +110,32 @@ services:
             # SHARELATEX_PROXY_LEARN: "true"
 
     mongo:
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: root
+            MONGO_INITDB_ROOT_PASSWORD: root
+            MONGO_REPLICA_SET_KEY: 1234567abcdf
+            MONGO_INITDB_DATABASE: sharelatex
         restart: always
         image: mongo
         container_name: mongo
         expose:
             - 27017
+        command: "mongod --bind_ip_all --replSet rs0 --keyFile /data/replica.key"
+        entrypoint:
+        - bash
+        - -c
+        - |
+            echo "1234567abcdf" > /data/replica.key
+            chmod 400 /data/replica.key
+            chown mongodb:mongodb /data/replica.key
+            echo 'rs.initiate({ _id: "rs0", members: [ { _id: 0, host: "mongo:27017" } ] })' > /docker-entrypoint-initdb.d/01_init_replSet.js
+            echo 'db = db.getSiblingDB("sharelatex"); db.createUser({ user:  "test", pwd: "test", roles: [{ role: "readWrite", db: "sharelatex"}]})' > /docker-entrypoint-initdb.d/02_create_user.js
+            exec docker-entrypoint.sh $$@
         healthcheck:
-            test: echo 'db.stats().ok' | mongo localhost:27017/test --quiet
-            interval: 10s
-            timeout: 10s
-            retries: 5
+                test: echo 'db.stats().ok' | mongosh localhost:27017/test --quiet
+                interval: 10s
+                timeout: 10s
+                retries: 5
 
     redis:
         restart: always
