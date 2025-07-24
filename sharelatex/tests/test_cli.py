@@ -23,9 +23,9 @@ from sharelatex.cli import (
 )
 from sharelatex.cli import cli as cli_cli
 
-sample_image_file_name = "frog.jpg"
-sample_latex_file_name = "main.tex"
-sample_bib_file_name = "sample.bib"
+sample_image_file_name = typing_cast(str, os.environ.get("CI_JPEG_FILE_NAME"))
+sample_latex_file_name = typing_cast(str, os.environ.get("CI_TEX_FILE_NAME"))
+sample_bib_file_name = typing_cast(str, os.environ.get("CI_BIB_FILE_NAME"))
 
 logging.basicConfig(level=logging.DEBUG)
 

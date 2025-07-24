@@ -131,7 +131,10 @@ MESSAGE_REPO_ISNT_CLEAN = "The repo isn't clean"
 PROMPT_BASE_URL = "Base url: "
 PROMPT_PROJECT_ID = "Project id: "
 PROMPT_AUTH_TYPE = """Authentication type
-(gitlab|*overleaf_gitlab*|community|cookie|overleaf_cookie|legacy): """
+(gitlab|*overleaf_gitlab*|
+community|overleaf_community|
+cookie|overleaf_cookie|
+legacy): """
 DEFAULT_AUTH_TYPE = "overleaf_gitlab"
 PROMPT_USERNAME = "Username: "
 PROMPT_PASSWORD = "Password: "
@@ -670,6 +673,7 @@ def _sync_remote_docs(
     remote_docs = (item for item in remote_items if item["type"] == "doc")
     logger.debug("check if remote documents are newer that locals")
     remote_time = datetime.datetime.now(datetime.timezone.utc)
+    updates = []
     for remote_doc in remote_docs:
         doc_id = remote_doc["_id"]
         need_to_download = False
@@ -690,7 +694,6 @@ def _sync_remote_docs(
             if update_data["updates"]:
                 # check if have a new updates data structure
                 if "pathnames" in update_data["updates"][0]:
-                    updates = []
                     for update in update_data["updates"]:
                         if relative_path in update["pathnames"]:
                             updates.append(update["meta"]["end_ts"])
