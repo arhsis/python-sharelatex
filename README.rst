@@ -42,7 +42,7 @@ testing it on:
 Persistent sessions
 -------------------
 
-Sessions are persistent and store in the application directory (exact might
+Sessions are persistent and stored in the application directory (exact might
 differ on the OS used). Is uses `appdirs
 <https://github.com/ActiveState/appdirs>`_ internally.
 
