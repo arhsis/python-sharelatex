@@ -1,4 +1,4 @@
-Python-sharelatex is a library to interact with https://sharelatex.irisa.fr. It
+Python-sharelatex is a library to interact with https://ovelerleaf.irisa.fr. It
 also includes a command line tools to sync your remote project with Git. This
 allows you to work offline on your project and later sync your local copy with
 the remote one.
