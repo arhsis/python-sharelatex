@@ -32,13 +32,11 @@ Installation
 Compatibility notes
 -------------------
 
-The tool is targeting the community edition of ShareLatex/Overleaf and we are
+The tool is targeting the community edition of Overleaf and we are
 testing it on:
 
-- https://sharelatex.irisa.fr -- ``legacy`` authentication method
-- https://overleaf.irisa.fr -- ``overleaf_gitlab`` authentication method
-- Overleaf CE (3.0.1) --  ``community`` authentication method
-- Overleaf CE (5.2.1) --  ``overleaf_community`` authentication method
+- https://overleaf.irisa.fr -- ``inria`` authentication method
+- Overleaf CE (5.2.1) --  ``community`` authentication method
 
 
 Persistent sessions

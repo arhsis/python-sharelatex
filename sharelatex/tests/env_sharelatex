@@ -1,8 +1,0 @@
-SHARELATEX_APP_NAME='Overleaf Community Edition'
-
-#SHARELATEX_MONGO_URL='mongodb://mongo/sharelatex'
-SHARELATEX_MONGO_URL='mongodb://test:test@mongo/sharelatex?authSource=sharelatex'
-
-# Same property, unfortunately with different names in
-# different locations
-SHARELATEX_REDIS_HOST='redis'

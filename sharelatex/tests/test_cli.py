@@ -23,17 +23,27 @@ from sharelatex.cli import (
 )
 from sharelatex.cli import cli as cli_cli
 
-sample_image_file_name = typing_cast(str, os.environ.get("CI_JPEG_FILE_NAME"))
-sample_latex_file_name = typing_cast(str, os.environ.get("CI_TEX_FILE_NAME"))
-sample_bib_file_name = typing_cast(str, os.environ.get("CI_BIB_FILE_NAME"))
+sample_image_file_name = typing_cast(
+    str, os.environ.get("CI_JPEG_FILE_NAME", "frog.jpg")
+)
+sample_latex_file_name = typing_cast(
+    str, os.environ.get("CI_TEX_FILE_NAME", "main.tex")
+)
+sample_bib_file_name = typing_cast(
+    str, os.environ.get("CI_BIB_FILE_NAME", "sample.bib")
+)
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-BASE_URL = typing_cast(str, os.environ.get("CI_BASE_URL"))
-USERNAMES = typing_cast(str, os.environ.get("CI_USERNAMES"))
-PASSWORDS = typing_cast(str, os.environ.get("CI_PASSWORDS"))
-AUTH_TYPE = typing_cast(str, os.environ.get("CI_AUTH_TYPE"))
+BASE_URL = typing_cast(str, os.environ.get("CI_BASE_URL", "http://localhost:8080"))
+USERNAMES = typing_cast(
+    str, os.environ.get("CI_USERNAMES", "joe1@inria.fr,joe2@inria.fr,joe3@inria.fr")
+)
+PASSWORDS = typing_cast(
+    str, os.environ.get("CI_PASSWORDS", "TestTest42,TestTest42,TestTest42")
+)
+AUTH_TYPE = typing_cast(str, os.environ.get("CI_AUTH_TYPE", "community"))
 VERIFY = True  # typing_cast(bool, os.environ.get("CI_SSL_VERIFY"))
 
 # Operate with a list of users

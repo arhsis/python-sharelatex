@@ -13,6 +13,7 @@ from typing import (
     Callable,
     Dict,
     Generator,
+    List,
     Mapping,
     Optional,
     Sequence,
@@ -40,13 +41,32 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+class FileData(TypedDict):
+    _id: str
+    name: str
+    ...
+
+
+class DocData(TypedDict):
+    _id: str
+    name: str
+
+
+class FolderData(TypedDict):
+    _id: str
+    name: str
+    folders: List["FolderData"]
+    fileRefs: List[FileData]
+    docs: List[DocData]
+
+
 class ProjectData(TypedDict):
     """
     Project data.
     """
 
     _id: str
-    rootFolder: str
+    rootFolder: List[FolderData]
     name: str
 
 
@@ -113,8 +133,8 @@ class FolderRep(TypedDict):
 
     name: str
     _id: str
-    fileRefs: Sequence[str]
-    docs: Sequence[str]
+    fileRefs: Sequence[FileData]
+    docs: Sequence[DocData]
     folders: Sequence["FolderRep"]
 
 
@@ -165,12 +185,18 @@ def walk_project_data(
                     "folder_id": folder_id,
                     "folder_path": folder_path,
                     "type": "file",
+                    "name": f["name"],
                 }
                 fd.update(f)  # type: ignore
                 if predicate(fd):
                     yield fd
             for d in c["docs"]:
-                fd = {"folder_id": folder_id, "folder_path": folder_path, "type": "doc"}
+                fd = {
+                    "folder_id": folder_id,
+                    "folder_path": folder_path,
+                    "type": "doc",
+                    "name": d["name"],
+                }
                 fd.update(d)  # type: ignore
                 if predicate(fd):
                     yield fd
@@ -180,15 +206,18 @@ def walk_project_data(
     return _walk_project_data(project_data["rootFolder"], "")  # type: ignore
 
 
-class FolderData(TypedDict):
+class CuratedFolderData(TypedDict):
     """
     Folder.
     """
 
     folder_id: str
+    folder_path: str
+    type: str
+    name: str
 
 
-def lookup_folder(project_data: ProjectData, folder_path: str) -> FolderData:
+def lookup_folder(project_data: ProjectData, folder_path: str) -> CuratedFolderData:
     """Lookup a folder by its path
 
     Args:
@@ -304,7 +333,7 @@ class Authenticator:
         self.login_url: str = ""
         self.username: str = ""
         self.password: str = ""
-        self.sid_name: str = "sharelatex.sid"
+        self.sid_name: str = "overleaf.sid"
         self.verify: bool = True
         self.csrf: str = ""
         self.login_data: Mapping[str, Any] = {}
@@ -402,7 +431,7 @@ class CommunityAuthenticator(DefaultAuthenticator):
     pass
 
 
-class CookieAuthenticator(DefaultAuthenticator):
+class OverleafCookieAuthenticator(DefaultAuthenticator):
     """
     Cookie session authenticator.
     """
@@ -432,65 +461,6 @@ class CookieAuthenticator(DefaultAuthenticator):
         )
         login_data = dict(email=self.username, _csrf=None)
         return login_data, {self.sid_name: password}
-
-
-class OverleafCommunityAuthenticator(DefaultAuthenticator):
-    """
-    Overleaf Community authenticator.
-    """
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.sid_name = "overleaf.sid"
-
-
-class OverleafcookieAuthenticator(CookieAuthenticator):
-    """
-    Overleaf Community Cookie session authenticator.
-    """
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.sid_name = "overleaf.sid"
-
-
-class LegacyAuthenticator(DefaultAuthenticator):
-    """
-    Legacy authenticator
-    """
-
-    def authenticate(
-        self,
-        base_url: str,
-        username: str,
-        password: str,
-        verify: bool = True,
-        login_path: str = "/login",
-    ) -> Tuple[Mapping[str, Any], Mapping[str, Any]]:
-        """
-        Authenticate.
-        """
-        self.login_url = urllib.parse.urljoin(base_url, login_path)
-        self.username = username
-        self.password = password
-        self.verify = verify
-
-        r = self.session.get(self.login_url, verify=self.verify)
-        _csrf = get_csrf_Token(r.text)
-        if _csrf is None:
-            raise Exception(f"We could not find the CSRF in {self.login_url}")
-        self.csrf = _csrf
-        self.login_data = dict(
-            email=self.username,
-            password=self.password,
-            _csrf=self.csrf,
-        )
-        logger.debug("try login")
-        _r = self.session.post(self.login_url, data=self.login_data, verify=self.verify)
-        _r.raise_for_status()
-        check_login_error(_r)
-        login_data = dict(email=self.username, _csrf=self.csrf)
-        return login_data, {self.sid_name: _r.cookies[self.sid_name]}
 
 
 class GitlabAuthenticator(DefaultAuthenticator):
@@ -623,13 +593,9 @@ class OverleafGitlabAuthenticator(GitlabAuthenticator):
 
 
 AUTH_DICT = {
-    "gitlab": GitlabAuthenticator,
-    "overleaf_gitlab": OverleafGitlabAuthenticator,
+    "gitlab": OverleafGitlabAuthenticator,
+    "overleaf_gitlab": OverleafGitlabAuthenticator,  # backward compat
     "community": CommunityAuthenticator,
-    "legacy": LegacyAuthenticator,
-    "cookie": CookieAuthenticator,
-    "overleaf_cookie": OverleafcookieAuthenticator,
-    "overleaf_community": OverleafCommunityAuthenticator,
 }
 
 

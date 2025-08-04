@@ -1,3 +1,11 @@
+# Mongo
+MONGO_INITDB_ROOT_USERNAME='root'
+MONGO_INITDB_ROOT_PASSWORD='root'
+MONGO_REPLICA_SET_KEY='1234567abcdf'
+MONGO_INITDB_DATABASE='sharelatex'
+
+
+# overleaf
 OVERLEAF_APP_NAME="Overleaf Community Edition"
 
 MONGO_OVERLEAF_USER='test'
