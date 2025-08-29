@@ -671,8 +671,8 @@ def _sync_remote_docs(
     remote_docs = (item for item in remote_items if item["type"] == "doc")
     logger.debug("check if remote documents are newer that locals")
     remote_time = datetime.datetime.now(datetime.timezone.utc)
-    updates = []
     for remote_doc in remote_docs:
+        updates = []
         doc_id = remote_doc["_id"]
         need_to_download = False
         local_path = working_path.joinpath(remote_doc["folder_path"]).joinpath(
