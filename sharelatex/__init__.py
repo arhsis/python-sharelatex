@@ -70,23 +70,29 @@ class ProjectData(TypedDict):
     name: str
 
 
-class UpdateMeta(TypedDict):
+class UpdateMeta(TypedDict, total=False):
     """
     Update.
     """
 
+    users: List[Dict[str, str]]
+    start_ts: int
     end_ts: int
+    origin: Dict
 
 
-class Update(TypedDict):
+class Update(TypedDict, total=False):
     """
     Update.
     """
 
+    fromV: int
+    toV: int
     docs: Sequence[str]
     meta: UpdateMeta
     pathnames: Sequence[str]
-    project_ops: Dict
+    project_ops: List[Dict[Any, Any]]
+    labels: List[str]
 
 
 class UpdateDatum(TypedDict):

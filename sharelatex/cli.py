@@ -660,6 +660,42 @@ def _sync_remote_files(
                 os.utime(local_path, (remote_time.timestamp(), remote_time.timestamp()))
 
 
+def remote_last_update_time(
+    update_data: UpdateDatum, relative_path: str, doc_id: str
+) -> Optional[int]:
+    # iterate over all the updates
+    if update_data["updates"]:
+        # keep track of all updates
+        updates = []
+        # check if have a new updates data structure
+        if "pathnames" in update_data["updates"][0]:
+            for update in update_data["updates"]:
+                if relative_path in update["pathnames"]:
+                    # the file content has been updated
+                    updates.append(update["meta"]["end_ts"])
+                else:
+                    # creation, removal, rename case
+                    for op in update["project_ops"]:
+                        for v in op.values():
+                            if type(v) is dict:
+                                if "pathname" in v:
+                                    if relative_path == v["pathname"]:
+                                        updates.append(update["meta"]["end_ts"])
+        else:
+            # FIXME(msimonin): dead code ? (since overleaf 5.2.1 ?)
+            updates = [
+                update["meta"]["end_ts"]
+                for update in update_data["updates"]
+                if doc_id in update["docs"]
+            ]
+
+    # FIXME(msimonin): can be set to the infinity (or the judgement day)
+    remote_time = None
+    if len(updates) > 0:
+        remote_time = updates[0]
+    return remote_time
+
+
 def _sync_remote_docs(
     client: SyncClient,
     project_id: str,
@@ -672,7 +708,6 @@ def _sync_remote_docs(
     logger.debug("check if remote documents are newer that locals")
     remote_time = datetime.datetime.now(datetime.timezone.utc)
     for remote_doc in remote_docs:
-        updates = []
         doc_id = remote_doc["_id"]
         need_to_download = False
         local_path = working_path.joinpath(remote_doc["folder_path"]).joinpath(
@@ -681,7 +716,9 @@ def _sync_remote_docs(
         relative_path = str(
             Path(remote_doc["folder_path"]).joinpath(remote_doc["name"])
         )
+        # compare with local file if any
         if local_path.is_file():
+            # first get the date of the last modification of the local file
             relative_path_for_dict = relative_path.replace(os.path.sep, "/")
             if relative_path_for_dict in datetimes_dict:
                 local_time = datetimes_dict[relative_path_for_dict]
@@ -689,39 +726,23 @@ def _sync_remote_docs(
                 local_time = datetime.datetime.fromtimestamp(
                     local_path.stat().st_mtime, datetime.timezone.utc
                 )
-            if update_data["updates"]:
-                # check if have a new updates data structure
-                if "pathnames" in update_data["updates"][0]:
-                    for update in update_data["updates"]:
-                        if relative_path in update["pathnames"]:
-                            updates.append(update["meta"]["end_ts"])
-                        else:
-                            for op in update["project_ops"]:
-                                for v in op.values():
-                                    if type(v) is dict:
-                                        if "pathname" in v:
-                                            if relative_path == v["pathname"]:
-                                                updates.append(update["meta"]["end_ts"])
-                else:
-                    updates = [
-                        update["meta"]["end_ts"]
-                        for update in update_data["updates"]
-                        if doc_id in update["docs"]
-                    ]
-            if len(updates) > 0:
-                remote_time = datetime.datetime.fromtimestamp(
-                    updates[0] / 1000, datetime.timezone.utc
-                )
+
+            t = remote_last_update_time(update_data, relative_path, doc_id)
+            if t:
                 logger.debug(f"local time for {local_path} : {local_time}")
+                remote_time = datetime.datetime.fromtimestamp(
+                    t / 1000, datetime.timezone.utc
+                )
                 logger.debug(f"remote time for {local_path} : {remote_time}")
                 if local_time < remote_time:
                     need_to_download = True
-            # elif not local_path.is_file():
-            #     remote_time = datetime.datetime.now(datetime.timezone.utc)
+
+        # no local file
         else:
             logger.debug(f"local path {local_path} is missing, need to download")
             need_to_download = True
             remote_time = datetime.datetime.now(datetime.timezone.utc)
+
         if need_to_download:
             logger.info(f"download from server file to update {local_path}")
             client.get_document(project_id, doc_id, dest_path=str(local_path))
