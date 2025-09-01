@@ -8,7 +8,172 @@ from typing import Any, Generator, Mapping, Sequence
 from typing import cast as typing_cast
 from unittest.mock import MagicMock, patch
 
-from sharelatex.cli import RemoteItem, _sync_deleted_items, _sync_remote_files
+from sharelatex import UpdateDatum
+from sharelatex.cli import (
+    RemoteItem,
+    _sync_deleted_items,
+    _sync_remote_files,
+    remote_last_update_time,
+)
+
+UPDATE_DATA: UpdateDatum = {
+    "updates": [
+        {
+            "fromV": 12,
+            "toV": 13,
+            "meta": {
+                "users": [
+                    {
+                        "first_name": "john.doe",
+                        "last_name": "",
+                        "email": "john.doe@inria.fr",
+                        "id": "62bdbb1c580c7c0095c6e8bd",
+                    }
+                ],
+                "start_ts": 1752762714382,
+                "end_ts": 1752762714382,
+            },
+            "labels": [],
+            "pathnames": [],
+            "project_ops": [
+                {"remove": {"pathname": "test_folder/to_delete.tex"}, "atV": 12}
+            ],
+        },
+        {
+            "fromV": 11,
+            "toV": 12,
+            "meta": {
+                "users": [
+                    {
+                        "first_name": "john.doe",
+                        "last_name": "",
+                        "email": "john.doe@inria.fr",
+                        "id": "62bdbb1c580c7c0095c6e8bd",
+                    }
+                ],
+                "start_ts": 1752762705235,
+                "end_ts": 1752762705235,
+            },
+            "labels": [],
+            "pathnames": ["test_folder/to_delete.tex"],
+            "project_ops": [],
+        },
+        {
+            "fromV": 9,
+            "toV": 11,
+            "meta": {
+                "users": [
+                    {
+                        "first_name": "john.doe",
+                        "last_name": "",
+                        "email": "john.doe@inria.fr",
+                        "id": "62bdbb1c580c7c0095c6e8bd",
+                    }
+                ],
+                "start_ts": 1752762624011,
+                "end_ts": 1752762700448,
+            },
+            "labels": [],
+            "pathnames": [],
+            "project_ops": [
+                {"add": {"pathname": "test_folder/to_delete.tex"}, "atV": 10},
+                {
+                    "rename": {
+                        "pathname": "test_folder/test.tex",
+                        "newPathname": "test_folder/test_renamed.tex",
+                    },
+                    "atV": 9,
+                },
+            ],
+        },
+        {
+            "fromV": 7,
+            "toV": 9,
+            "meta": {
+                "users": [
+                    {
+                        "first_name": "john.doe",
+                        "last_name": "",
+                        "email": "john.doe@inria.fr",
+                        "id": "62bdbb1c580c7c0095c6e8bd",
+                    }
+                ],
+                "start_ts": 1752762367285,
+                "end_ts": 1752762526576,
+            },
+            "labels": [],
+            "pathnames": ["test_folder/test.tex"],
+            "project_ops": [],
+        },
+        {
+            "fromV": 6,
+            "toV": 7,
+            "meta": {
+                "users": [
+                    {
+                        "first_name": "john.doe",
+                        "last_name": "",
+                        "email": "john.doe@inria.fr",
+                        "id": "62bdbb1c580c7c0095c6e8bd",
+                    }
+                ],
+                "start_ts": 1752762358366,
+                "end_ts": 1752762358366,
+            },
+            "labels": [],
+            "pathnames": [],
+            "project_ops": [{"add": {"pathname": "test_folder/test.tex"}, "atV": 6}],
+        },
+        {
+            "fromV": 5,
+            "toV": 6,
+            "meta": {
+                "users": [
+                    {
+                        "first_name": "john.doe",
+                        "last_name": "",
+                        "email": "john.doe@inria.fr",
+                        "id": "62bdbb1c580c7c0095c6e8bd",
+                    }
+                ],
+                "start_ts": 1752750657031,
+                "end_ts": 1752750657031,
+            },
+            "labels": [],
+            "pathnames": ["main.tex"],
+            "project_ops": [],
+        },
+        {
+            "fromV": 0,
+            "toV": 5,
+            "meta": {
+                "users": [],
+                "start_ts": 1752576392452,
+                "end_ts": 1752576392465,
+                "origin": {"kind": "history-resync"},
+            },
+            "labels": [],
+            "pathnames": [],
+            "project_ops": [
+                {"add": {"pathname": "sample.bib"}, "atV": 2},
+                {"add": {"pathname": "main.tex"}, "atV": 1},
+                {"add": {"pathname": "frog.jpg"}, "atV": 0},
+            ],
+        },
+    ]
+}
+
+
+class TestRemoteLastUpdateTime(unittest.TestCase):
+    def test_remote_last_update_time_file_updated(self) -> None:
+        self.assertEqual(
+            1752750657031, remote_last_update_time(UPDATE_DATA, "main.tex", "test")
+        )
+
+    def test_remote_last_update_time_file_created(self) -> None:
+        self.assertEqual(
+            1752576392465, remote_last_update_time(UPDATE_DATA, "frog.jpg", "test")
+        )
 
 
 @contextmanager
