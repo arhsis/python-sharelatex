@@ -22,7 +22,6 @@ from typing import (
 from zipfile import ZipFile
 
 import click
-import dateutil.parser
 import keyring
 from git import Repo
 from git.config import cp
@@ -618,48 +617,6 @@ def _get_datetime_from_git(
     return datetimes_dict
 
 
-def _sync_remote_files(
-    client: SyncClient,
-    project_id: str,
-    working_path: Path,
-    remote_items: Sequence[RemoteItem],
-    datetimes_dict: Mapping[str, datetime.datetime],
-) -> None:
-    remote_files = (item for item in remote_items if item["type"] == "file")
-    # TODO: build the list of file to download and then write them in a second step
-    logger.debug("check if remote files are newer that locals")
-    for remote_file in remote_files:
-        need_to_download = False
-        local_path = working_path.joinpath(remote_file["folder_path"]).joinpath(
-            remote_file["name"]
-        )
-        relative_path = str(
-            Path(remote_file["folder_path"]).joinpath(remote_file["name"])
-        )
-        if local_path.is_file():
-            relative_path_for_dict = relative_path.replace(os.path.sep, "/")
-            if relative_path_for_dict in datetimes_dict:
-                local_time = datetimes_dict[relative_path_for_dict]
-            else:
-                local_time = datetime.datetime.fromtimestamp(
-                    local_path.stat().st_mtime, datetime.timezone.utc
-                )
-            remote_time = dateutil.parser.parse(remote_file["created"])
-            logger.debug(f"local time for {local_path} : {local_time}")
-            logger.debug(f"remote time for {local_path} : {remote_time}")
-            if local_time < remote_time:
-                need_to_download = True
-        else:
-            need_to_download = True
-            remote_time = datetime.datetime.now(datetime.timezone.utc)
-        if need_to_download:
-            logger.info(f"download from server file to update {local_path}")
-            client.get_file(project_id, remote_file["_id"], dest_path=str(local_path))
-            # set local time for downloaded file to remote_time
-            if local_path.is_file():
-                os.utime(local_path, (remote_time.timestamp(), remote_time.timestamp()))
-
-
 def remote_last_update_time(
     update_data: UpdateDatum, relative_path: str, doc_id: str
 ) -> Optional[int]:
@@ -696,7 +653,7 @@ def remote_last_update_time(
     return remote_time
 
 
-def _sync_remote_docs(
+def _sync_remote(
     client: SyncClient,
     project_id: str,
     working_path: Path,
@@ -704,18 +661,13 @@ def _sync_remote_docs(
     update_data: UpdateDatum,
     datetimes_dict: Mapping[str, datetime.datetime],
 ) -> None:
-    remote_docs = (item for item in remote_items if item["type"] == "doc")
     logger.debug("check if remote documents are newer that locals")
     remote_time = datetime.datetime.now(datetime.timezone.utc)
-    for remote_doc in remote_docs:
-        doc_id = remote_doc["_id"]
+    for item in remote_items:
+        doc_id = item["_id"]
         need_to_download = False
-        local_path = working_path.joinpath(remote_doc["folder_path"]).joinpath(
-            remote_doc["name"]
-        )
-        relative_path = str(
-            Path(remote_doc["folder_path"]).joinpath(remote_doc["name"])
-        )
+        local_path = working_path.joinpath(item["folder_path"]).joinpath(item["name"])
+        relative_path = str(Path(item["folder_path"]).joinpath(item["name"]))
         # compare with local file if any
         if local_path.is_file():
             # first get the date of the last modification of the local file
@@ -745,7 +697,11 @@ def _sync_remote_docs(
 
         if need_to_download:
             logger.info(f"download from server file to update {local_path}")
-            client.get_document(project_id, doc_id, dest_path=str(local_path))
+            if item["type"] == "doc":
+                client.get_document(project_id, doc_id, dest_path=str(local_path))
+            else:
+                assert item["type"] == "file"
+                client.get_file(project_id, item["_id"], dest_path=str(local_path))
             # Set local time for downloaded document to remote_time
             if local_path.is_file():
                 os.utime(local_path, (remote_time.timestamp(), remote_time.timestamp()))
@@ -789,12 +745,8 @@ def _pull(repo: Repo, client: SyncClient, project_id: str, git_branch: str) -> N
 
         _sync_deleted_items(working_path, remote_items, objects)
 
-        _sync_remote_files(
-            client, project_id, working_path, remote_items, datetimes_dict
-        )
-
         update_data = client.get_project_update_data(project_id)
-        _sync_remote_docs(
+        _sync_remote(
             client,
             project_id,
             working_path,
