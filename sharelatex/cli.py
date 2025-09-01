@@ -664,47 +664,52 @@ def _sync_remote(
     logger.debug("check if remote documents and files are newer that locals")
     remote_time = datetime.datetime.now(datetime.timezone.utc)
     for item in remote_items:
-        doc_id = item["_id"]
-        need_to_download = False
-        local_path = working_path.joinpath(item["folder_path"]).joinpath(item["name"])
-        relative_path = str(Path(item["folder_path"]).joinpath(item["name"]))
-        # compare with local file if any
-        if local_path.is_file():
-            # first get the date of the last modification of the local file
-            relative_path_for_dict = relative_path.replace(os.path.sep, "/")
-            if relative_path_for_dict in datetimes_dict:
-                local_time = datetimes_dict[relative_path_for_dict]
-            else:
-                local_time = datetime.datetime.fromtimestamp(
-                    local_path.stat().st_mtime, datetime.timezone.utc
-                )
-
-            t = remote_last_update_time(update_data, relative_path, doc_id)
-            if t:
-                logger.debug(f"local time for {local_path} : {local_time}")
-                remote_time = datetime.datetime.fromtimestamp(
-                    t / 1000, datetime.timezone.utc
-                )
-                logger.debug(f"remote time for {local_path} : {remote_time}")
-                if local_time < remote_time:
-                    need_to_download = True
-
-        # no local file
-        else:
-            logger.debug(f"local path {local_path} is missing, need to download")
-            need_to_download = True
-            remote_time = datetime.datetime.now(datetime.timezone.utc)
-
-        if need_to_download:
-            logger.info(f"download from server file to update {local_path}")
-            if item["type"] == "doc":
-                client.get_document(project_id, doc_id, dest_path=str(local_path))
-            else:
-                assert item["type"] == "file"
-                client.get_file(project_id, item["_id"], dest_path=str(local_path))
-            # Set local time for downloaded document to remote_time
+        if "_id" in item:
+            item_id = item["_id"]
+            need_to_download = False
+            local_path = working_path.joinpath(item["folder_path"]).joinpath(
+                item["name"]
+            )
+            relative_path = str(Path(item["folder_path"]).joinpath(item["name"]))
+            # compare with local file if any
             if local_path.is_file():
-                os.utime(local_path, (remote_time.timestamp(), remote_time.timestamp()))
+                # first get the date of the last modification of the local file
+                relative_path_for_dict = relative_path.replace(os.path.sep, "/")
+                if relative_path_for_dict in datetimes_dict:
+                    local_time = datetimes_dict[relative_path_for_dict]
+                else:
+                    local_time = datetime.datetime.fromtimestamp(
+                        local_path.stat().st_mtime, datetime.timezone.utc
+                    )
+
+                t = remote_last_update_time(update_data, relative_path, item_id)
+                if t:
+                    logger.debug(f"local time for {local_path} : {local_time}")
+                    remote_time = datetime.datetime.fromtimestamp(
+                        t / 1000, datetime.timezone.utc
+                    )
+                    logger.debug(f"remote time for {local_path} : {remote_time}")
+                    if local_time < remote_time:
+                        need_to_download = True
+
+            # no local file
+            else:
+                logger.debug(f"local path {local_path} is missing, need to download")
+                need_to_download = True
+                remote_time = datetime.datetime.now(datetime.timezone.utc)
+
+            if need_to_download:
+                logger.info(f"download from server file to update {local_path}")
+                if item["type"] == "doc":
+                    client.get_document(project_id, item_id, dest_path=str(local_path))
+                else:
+                    assert item["type"] == "file"
+                    client.get_file(project_id, item["_id"], dest_path=str(local_path))
+                # Set local time for downloaded document to remote_time
+                if local_path.is_file():
+                    os.utime(
+                        local_path, (remote_time.timestamp(), remote_time.timestamp())
+                    )
 
 
 def _pull(repo: Repo, client: SyncClient, project_id: str, git_branch: str) -> None:
