@@ -661,7 +661,7 @@ def _sync_remote(
     update_data: UpdateDatum,
     datetimes_dict: Mapping[str, datetime.datetime],
 ) -> None:
-    logger.debug("check if remote documents are newer that locals")
+    logger.debug("check if remote documents and files are newer that locals")
     remote_time = datetime.datetime.now(datetime.timezone.utc)
     for item in remote_items:
         doc_id = item["_id"]

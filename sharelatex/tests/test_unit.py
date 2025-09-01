@@ -249,6 +249,25 @@ class TestPull(unittest.TestCase):
                 },
             ],
         )
+        update_data: UpdateDatum = {
+            "updates": [ 
+                {
+                    "fromV": 0,
+                    "toV": 1,
+                    "meta": {
+                        "users": [],
+                        "start_ts": 1752576392452,
+                        "end_ts": 1752576392465,
+                        "origin": {"kind": "history-resync"},
+                    },
+                    "labels": [],
+                    "pathnames": [],
+                    "project_ops": [
+                        {"add": {"pathname": "myimage.png"}, "atV": 0},
+                    ],
+                },
+            ]
+        }
         client = MagicMock()
         client.get_file = MagicMock()
         project_id = 0
@@ -256,7 +275,11 @@ class TestPull(unittest.TestCase):
         # force to read local OS datetime (not git log datetime)
         datetimes_dict: Mapping[str, datetime.datetime] = {}
         _sync_remote(
-            client, str(project_id), working_path, remote_items, datetimes_dict
+            client, str(project_id),
+            working_path,
+            remote_items,
+            update_data,
+            datetimes_dict
         )
 
         client.get_file.assert_called_once()
