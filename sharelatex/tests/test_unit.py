@@ -12,7 +12,7 @@ from sharelatex import UpdateDatum
 from sharelatex.cli import (
     RemoteItem,
     _sync_deleted_items,
-    _sync_remote_files,
+    _sync_remote,
     remote_last_update_time,
 )
 
@@ -255,7 +255,7 @@ class TestPull(unittest.TestCase):
         working_path = Path.cwd()
         # force to read local OS datetime (not git log datetime)
         datetimes_dict: Mapping[str, datetime.datetime] = {}
-        _sync_remote_files(
+        _sync_remote(
             client, str(project_id), working_path, remote_items, datetimes_dict
         )
 
