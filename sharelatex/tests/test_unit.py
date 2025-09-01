@@ -250,7 +250,7 @@ class TestPull(unittest.TestCase):
             ],
         )
         update_data: UpdateDatum = {
-            "updates": [ 
+            "updates": [
                 {
                     "fromV": 0,
                     "toV": 1,
@@ -275,11 +275,12 @@ class TestPull(unittest.TestCase):
         # force to read local OS datetime (not git log datetime)
         datetimes_dict: Mapping[str, datetime.datetime] = {}
         _sync_remote(
-            client, str(project_id),
+            client,
+            str(project_id),
             working_path,
             remote_items,
             update_data,
-            datetimes_dict
+            datetimes_dict,
         )
 
         client.get_file.assert_called_once()
