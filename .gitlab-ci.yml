@@ -64,6 +64,7 @@ py39-functional: &base-functional
   - docker compose up -d
   - sleep 10
   # FIXME: we need to force this as this is not ran by the entrypoint
+  - docker exec -i mongo /bin/bash -c 'bash /docker-entrypoint-initdb.d/02_mongo_create_sharelatex_user.sh'
   - docker exec -i mongo /bin/bash -c 'mongosh -u root -p root --authenticationDatabase admin < /docker-entrypoint-initdb.d/03_init_replSet.js'
   # Prepare the the functionnal tests
   # -create an user
@@ -84,6 +85,7 @@ py39-functional: &base-functional
   - tox
   # clean data base for local CI execution
   - docker exec -i mongo /bin/bash -c 'mongosh sharelatex -u $MONGO_INITDB_ROOT_USERNAME -p $MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval "db.dropDatabase();"'
+  - docker compose down
 
 py310-functional:
   <<: *base-functional
