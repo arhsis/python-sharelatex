@@ -113,7 +113,15 @@ services:
     mongo:
         env_file:
         - ./env_overleaf
-        command: --replSet rs0 --keyFile /data/configdb/keyFile
+        command: "mongod --bind_ip_all --replSet rs0 --keyFile /data/configdb/keyFile"
+        entrypoint:
+        - bash
+        - -c
+        - |
+            /docker-entrypoint-initdb.d/01_replSet.sh
+            exec docker-entrypoint.sh $$@
+
+        #command: --replSet rs0 --keyFile /data/configdb/keyFile
         restart: always
         # For sharelatex 2.5.x, mongodb 4 is recommended
         # fixing to something reasonnable (4.4 is taken as an examples in the doc)
@@ -129,7 +137,7 @@ services:
         # This is a good place to put some initial user creation...
         - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
         healthcheck:
-            test: echo 'db.stats().ok' | mongo localhost:27017/test --quiet
+            test: echo 'db.stats().ok' | mongosh localhost:27017/test --quiet
             interval: 10s
             timeout: 10s
             retries: 5
