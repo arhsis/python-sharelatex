@@ -571,7 +571,6 @@ class GitlabAuthenticator(DefaultAuthenticator):
         _csrf = get_csrf_Token(_r.text)
         if _csrf is None:
             raise Exception(f"We could not find the CSRF in {redirect_url}")
-        logger.info("Logging successful")
         login_data = dict(email=self.username, _csrf=_csrf)
         return login_data, {self.sid_name: _r.cookies[self.sid_name]}
 

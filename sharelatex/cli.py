@@ -426,7 +426,7 @@ def getClient(
     verify: bool,
     save_password: Optional[bool] = None,
 ) -> SyncClient:
-    logger.info(f"try to open session on {base_url} with {username}")
+    logger.debug(f"try to open session on {base_url} with {username}")
     client = None
 
     authenticator = get_authenticator_class(auth_type)()
