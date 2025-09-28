@@ -132,9 +132,9 @@ MESSAGE_REPO_ISNT_CLEAN = "The repo isn't clean"
 PROMPT_BASE_URL = "Base url: "
 PROMPT_PROJECT_ID = "Project id: "
 PROMPT_AUTH_TYPE = """Authentication type
-(*gitlab*|community)
+(gitlab|*community*)
 """
-DEFAULT_AUTH_TYPE = "gitlab"
+DEFAULT_AUTH_TYPE = "community"
 PROMPT_USERNAME = "Username: "
 PROMPT_PASSWORD = "Password: "
 PROMPT_CONFIRM = "Do you want to save your password in your OS keyring system (y/n) ?"
