@@ -108,6 +108,7 @@ def set_log_level(verbose: int = 0) -> None:
 SLATEX_SECTION = "slatex"
 SYNC_BRANCH = "__remote__sharelatex__"
 
+PRESERVED_FILES = [".gitignore", ".gitattributes", "README.md"]
 
 def _commit_message(action: str) -> str:
     commit_message_base = "python-sharelatex "
@@ -591,6 +592,9 @@ def _sync_deleted_items(
         p_relative = blob_path.relative_to(working_path)
         # check the path and all of its parents dir
         if p_relative not in remote_path:
+            if str(p_relative) in PRESERVED_FILES:
+                logger.debug(f"preserving local file: {blob_path}")
+                continue
             logger.debug(f"delete {blob_path}")
             if blob_path.is_dir():
                 blob_path.rmdir()
@@ -701,6 +705,9 @@ def _sync_remote(
                 remote_time = datetime.datetime.now(datetime.timezone.utc)
 
             if need_to_download:
+                if str(Path(relative_path)) in PRESERVED_FILES:
+                    logger.debug(f"preserving local file: {local_path}")
+                    continue
                 logger.info(f"download from server file to update {local_path}")
                 if item["type"] == "doc":
                     client.get_document(project_id, item_id, dest_path=str(local_path))
