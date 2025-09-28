@@ -99,6 +99,8 @@ class RepoNotCleanError(SharelatexError):
 
 def set_log_level(verbose: int = 0) -> None:
     """set log level from integer value"""
+    if verbose is None:
+        verbose = 0
     log_levels = (logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG)
     logger.setLevel(log_levels[verbose])
 
